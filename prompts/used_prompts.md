@@ -164,3 +164,91 @@ __MACOSX/
 ```
 
 ---
+
+## 요청
+
+사용자 관련 API와 TODO 관련 API를 RESTfull 한 설계를 하여 Backend application을 만들 예정. build.gradle의 dependencies에 들어갈 의존성 목록을 리스트업 해줘
+
+- java spring boot, 패키지 관리와 빌드 도구로 Gradle
+- spring boot web, jpa, security, validation, webmvc, web services, dev tools
+- JWT를 사용하여 보안 로그인,
+- SQLite3, JPA, hibernate, dialects
+- lombok, OpenAPI ui(swagger)
+
+## 응답
+
+아래는 요청하신 내용을 충실히 반영한 RESTful 백엔드 Spring Boot 애플리케이션용 build.gradle.kts 의존성 목록입니다. SQLite, JWT, Hibernate Dialect, Swagger(OpenAPI), Lombok 등 모두 포함되어 있습니다.
+
+⸻
+
+### ✅ build.gradle.kts – 최종 의존성 목록
+
+```
+plugins {
+    id("org.springframework.boot") version "3.2.5"
+    id("io.spring.dependency-management") version "1.1.4"
+    kotlin("jvm") version "1.9.23" // Java만 쓸 경우 제거 가능
+    kotlin("plugin.spring") version "1.9.23" // Java만 쓸 경우 제거 가능
+}
+
+dependencies {
+    // 🌐 Spring Web & REST
+    implementation("org.springframework.boot:spring-boot-starter-web") // REST API
+    implementation("org.springframework.boot:spring-boot-starter-webmvc") // MVC 구조
+
+    // 🛠 Dev Tools
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
+
+    // 🛡 Security & Validation
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+
+    // 🧾 JPA & Hibernate
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.hibernate.orm:hibernate-core:6.4.4.Final") // Hibernate Core 직접 명시
+    implementation("org.hibernate.orm:hibernate-community-dialects:6.4.4.Final") // 다양한 DB dialects
+
+    // 🗃 SQLite JDBC
+    implementation("org.xerial:sqlite-jdbc:3.45.1.0") // 최신 안정화 버전 확인 필요
+
+    // 🔐 JWT (Java Web Token)
+    implementation("io.jsonwebtoken:jjwt-api:0.11.5")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.11.5")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.11.5")
+
+    // 🧱 Lombok
+    implementation("org.projectlombok:lombok")
+    annotationProcessor("org.projectlombok:lombok")
+
+    // 📚 Swagger (OpenAPI UI)
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
+
+    // 🧪 Test
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+}
+```
+
+⸻
+
+### 📌 추가 설명
+
+Hibernate Dialect 설정
+	•	hibernate-community-dialects는 SQLite 같은 비공식 DB 지원을 위해 필요하며,
+	•	application.yml 또는 application.properties에서 아래처럼 사용합니다:
+
+```
+spring:
+  jpa:
+    database-platform: org.hibernate.community.dialect.SQLiteDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  datasource:
+    url: jdbc:sqlite:./data/todo.db
+    driver-class-name: org.sqlite.JDBC
+```
+⸻
+
+이 구성은 사용자 인증(JWT 기반) + TODO CRUD API를 구현하는 RESTful Spring Boot 백엔드 프로젝트에 최적화되어 있습니다.
+
+필요하시면 JWT 필터 구성, Security 설정, Swagger 문서 설정, Entity 및 API 예시도 바로 도와드릴 수 있습니다. 어떤 부분부터 작업하시겠어요?

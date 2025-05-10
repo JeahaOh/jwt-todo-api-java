@@ -49,9 +49,8 @@ target/
 *.class
 
 # Gradle
-.gradle/
 build/
-!gradle-wrapper.jar
+.gradle/
 
 # Java 일반
 *.log
@@ -60,6 +59,7 @@ hs_err_pid*
 
 # Spring Boot 실행 파일
 *.jar
+!gradle-wrapper.jar
 *.war
 *.ear
 *.nar
@@ -133,3 +133,41 @@ application-local.properties
 
 # Mac 압축 시 생성 파일
 __MACOSX/
+
+##########################################
+# 기타 문서
+##########################################
+
+HELP.md
+
+##########################################
+# Gradle 예외 처리 상세
+##########################################
+
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+##########################################
+# Spring Tool Suite (STS)
+##########################################
+
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+##########################################
+# NetBeans
+##########################################
+
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
