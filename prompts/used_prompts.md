@@ -573,3 +573,149 @@ public class GlobalExceptionHandler {
 이 구조는 유지보수가 쉽고, 프론트엔드와 협업할 때도 응답 패턴이 예측 가능하다는 장점이 있습니다.
 
 추가로 성공 코드(enum으로) 관리하거나 Validation 오류 묶기, 혹은 국제화 메시지 적용이 필요하시면 다음 단계로 안내드릴 수 있습니다. 원하시나요?
+
+## 요청
+
+springdoc에서 JWT 토큰을 저장할 수 있도록 해줘 application.yml 설정을 도와줘
+
+## 응답
+
+SpringDoc(Swagger)에서 JWT 토큰을 저장하고 사용할 수 있도록 설정을 추가하겠습니다:  
+application.yml
+```yml
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+    doc-expansion: none
+    default-models-expand-depth: -1
+    persist-authorization: true
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  packages-to-scan: com.todo.api
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  show-actuator: false
+  security:
+    enabled: true
+    paths-to-match:
+      - /users/**
+      - /todos/**
+```
+
+이제 Swagger UI에서 JWT 토큰을 사용할 수 있도록 SecurityConfig에 Swagger UI 관련 설정을 추가하겠습니다:  
+SecurityConfig.java
+```java
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                .requestMatchers("/api/health/**").permitAll()
+                .requestMatchers("/users/signup", "/users/login").permitAll()
+                .anyRequest().authenticated())
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+```
+
+마지막으로 Swagger UI에서 JWT 인증을 사용할 수 있도록 OpenAPI 설정을 추가하겠습니다:  
+OpenApiConfig.java
+```java
+package com.todo.api.common.config;
+
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class OpenApiConfig {
+
+    @Bean
+    public OpenAPI openAPI() {
+        Info info = new Info()
+                .title("Todo API")
+                .description("Todo API 문서")
+                .version("v1.0.0");
+
+        SecurityScheme securityScheme = new SecurityScheme()
+                .type(SecurityScheme.Type.HTTP)
+                .scheme("bearer")
+                .bearerFormat("JWT")
+                .in(SecurityScheme.In.HEADER)
+                .name("Authorization");
+
+        SecurityRequirement securityRequirement = new SecurityRequirement().addList("bearerAuth");
+
+        return new OpenAPI()
+                .info(info)
+                .addSecurityItem(securityRequirement)
+                .components(new Components().addSecuritySchemes("bearerAuth", securityScheme));
+    }
+}
+```
+
+이제 Swagger UI에서 JWT 토큰을 사용할 수 있도록 설정이 완료되었습니다. 주요 변경사항은 다음과 같습니다:
+
+### 1. application.yml에 추가된 설정:
+- `persist-authorization: true`: 인증 정보를 브라우저에 저장
+- `operationsSorter: method`: API 메서드별로 정렬
+- `tagsSorter: alpha`: 태그를 알파벳 순으로 정렬
+- `doc-expansion: none`: API 문서를 접은 상태로 시작
+- `default-models-expand-depth: -1`: 모델을 접은 상태로 시작
+- `security.enabled: true`: 보안 설정 활성화
+- `security.paths-to-match`: 보안이 필요한 경로 지정
+
+### 2. OpenApiConfig 추가:
+- JWT 인증 스키마 정의
+- Bearer 토큰 형식 지정
+- API 문서 정보 설정
+
+### 이제 Swagger UI에서 다음과 같이 JWT 토큰을 사용할 수 있습니다:
+
+1. `/users/login` API를 호출하여 토큰을 받습니다.
+2. Swagger UI 우측 상단의 "Authorize" 버튼을 클릭합니다.
+3. 받은 토큰을 입력하고 "Authorize" 버튼을 클릭합니다.
+4. 이후 모든 API 호출에 자동으로 토큰이 포함됩니다.
+
+토큰은 브라우저에 저장되므로 페이지를 새로고침해도 유지됩니다.
+
+## 요청
+
+jwt를 사용하는데, session 정책이 필요해?
+
+## 응답
+
+아니요, JWT를 사용할 때는 세션 정책이 필요하지 않습니다. 오히려 세션을 사용하지 않는 것이 JWT의 장점 중 하나입니다.  
+현재 설정에서 `SessionCreationPolicy.STATELESS`를 사용하고 있는데, 이는 불필요한 설정입니다. JWT는 자체적으로 상태를 가지고 있기 때문에 서버에서 세션을 관리할 필요가 없습니다.  
+  
+JWT를 사용할 때 세션 정책이 필요하지 않은 이유는 다음과 같습니다:  
+
+### 1. JWT는 자체적으로 필요한 모든 정보를 포함하고 있습니다:
+- 사용자 식별 정보
+- 권한 정보
+- 만료 시간
+- 서명 정보
+
+### 2. 서버는 JWT 토큰의 유효성만 검증하면 됩니다:
+- 서명이 유효한지
+- 만료되지 않았는지
+- 토큰이 조작되지 않았는지
+
+### 3. 세션을 사용하지 않음으로써 얻는 장점:
+- 서버의 메모리 사용량 감소
+- 서버 확장이 용이 (세션 동기화 불필요)
+- 서버 재시작에 영향 없음
+- 마이크로서비스 아키텍처에 적합
+
+따라서 JWT 기반 인증에서는 세션 관리 설정을 제거하는 것이 더 적절합니다.
