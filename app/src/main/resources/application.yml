@@ -4,12 +4,11 @@ spring:
   datasource:
     url: jdbc:sqlite:../database/mydata.sqlite3
     driver-class-name: org.sqlite.JDBC
-    initialization-mode: always
-    schema: classpath:/init.sql
   sql:
     init:
       mode: always
-      schema-location: classpath:/init.sql
+      schema-locations: classpath:/init.sql
+      continue-on-error: true
   jpa:
     hibernate:
       ddl-auto: update
