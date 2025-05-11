@@ -1,4 +1,4 @@
-package com.todo.api.dto;
+package com.todo.api.health.dto;
 
 import lombok.Builder;
 import lombok.Getter;

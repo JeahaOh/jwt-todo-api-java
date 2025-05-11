@@ -1,6 +1,6 @@
-package com.todo.api.service;
+package com.todo.api.health.service;
 
-import com.todo.api.dto.HealthCheckResponse;
+import com.todo.api.health.dto.HealthCheckResponse;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;

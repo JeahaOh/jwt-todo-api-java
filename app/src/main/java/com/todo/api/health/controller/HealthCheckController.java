@@ -1,9 +1,9 @@
-package com.todo.api.controller;
+package com.todo.api.health.controller;
 
 import com.todo.api.common.CustomResponse;
 import com.todo.api.common.util.ResponseUtil;
-import com.todo.api.dto.HealthCheckResponse;
-import com.todo.api.service.HealthCheckService;
+import com.todo.api.health.dto.HealthCheckResponse;
+import com.todo.api.health.service.HealthCheckService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
