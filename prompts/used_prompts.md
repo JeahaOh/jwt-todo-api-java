@@ -719,3 +719,456 @@ JWT를 사용할 때 세션 정책이 필요하지 않은 이유는 다음과 �
 - 마이크로서비스 아키텍처에 적합
 
 따라서 JWT 기반 인증에서는 세션 관리 설정을 제거하는 것이 더 적절합니다.
+
+---
+
+## 요청
+
+스펙에 맞는 TODO API를 개발하려 해.
+기존에 개발된 @mmbr mmbr 팩키지를 참고하고, 해당 패키지와 통일성 있게 개발 해줘
+
+## 응답
+
+네, TODO API를 개발하도록 하겠습니다. 먼저 기존 `mmbr` 패키지의 구조를 분석하고, 동일한 패턴으로 TODO API를 구현하겠습니다.  
+먼저 `mmbr` 패키지의 구조를 자세히 살펴보겠습니다.
+
+Ran tool  
+Read file: app/src/main/java/com/todo/api/mmbr/domain/Member.java  
+이제 TODO API를 위한 새로운 패키지를 생성하고 필요한 파일들을 만들어보겠습니다. 먼저 도메인 모델부터 시작하겠습니다.  
+
+Todo.java
+```java
+package com.todo.api.todo.domain;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "todo")
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class Todo {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Integer no;
+
+    @Column(nullable = false, length = 255)
+    private String title;
+
+    @Column(length = 1000)
+    private String description;
+
+    @Column(nullable = false)
+    private boolean completed = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_no", nullable = false)
+    private com.todo.api.mmbr.domain.Member member;
+
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
+}
+```
+
+이제 DTO 클래스들을 생성하겠습니다.  
+TodoRequest.java
+```java
+package com.todo.api.todo.dto;
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class TodoRequest {
+    private String title;
+    private String description;
+    private boolean completed;
+}
+```
+TodoResponse.java
+```java
+package com.todo.api.todo.dto;
+
+import com.todo.api.todo.domain.Todo;
+import lombok.Getter;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+
+@Getter
+@Setter
+public class TodoResponse {
+    private Integer no;
+    private String title;
+    private String description;
+    private boolean completed;
+    private Integer memberNo;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
+    public static TodoResponse from(Todo todo) {
+        TodoResponse response = new TodoResponse();
+        response.setNo(todo.getNo());
+        response.setTitle(todo.getTitle());
+        response.setDescription(todo.getDescription());
+        response.setCompleted(todo.isCompleted());
+        response.setMemberNo(todo.getMember().getNo());
+        response.setCreatedAt(todo.getCreatedAt());
+        response.setUpdatedAt(todo.getUpdatedAt());
+        return response;
+    }
+}
+```
+
+이제 Repository를 생성하겠습니다.
+TodoRepository.java
+```java
+package com.todo.api.todo.repository;
+
+import com.todo.api.todo.domain.Todo;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+
+public interface TodoRepository extends JpaRepository<Todo, Integer> {
+    List<Todo> findByMemberNo(Integer memberNo);
+    
+    @Query("SELECT t FROM Todo t WHERE t.member.no = :memberNo AND " +
+           "(LOWER(t.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(t.description) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    List<Todo> searchByKeyword(@Param("memberNo") Integer memberNo, @Param("keyword") String keyword);
+}
+```
+
+Service 계층을 생성하겠습니다.
+TodoService.java
+```java
+package com.todo.api.todo.service;
+
+import com.todo.api.todo.dto.TodoRequest;
+import com.todo.api.todo.dto.TodoResponse;
+
+import java.util.List;
+
+public interface TodoService {
+    TodoResponse createTodo(Integer memberNo, TodoRequest request);
+    List<TodoResponse> getTodos(Integer memberNo);
+    TodoResponse getTodo(Integer memberNo, Integer todoNo);
+    TodoResponse updateTodo(Integer memberNo, Integer todoNo, TodoRequest request);
+    void deleteTodo(Integer memberNo, Integer todoNo);
+    List<TodoResponse> searchTodos(Integer memberNo, String keyword);
+}
+```
+TodoServiceImpl.java
+```java
+package com.todo.api.todo.service;
+
+import com.todo.api.mmbr.domain.Member;
+import com.todo.api.mmbr.repository.MemberRepository;
+import com.todo.api.todo.domain.Todo;
+import com.todo.api.todo.dto.TodoRequest;
+import com.todo.api.todo.dto.TodoResponse;
+import com.todo.api.todo.repository.TodoRepository;
+import jakarta.persistence.EntityNotFoundException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class TodoServiceImpl implements TodoService {
+
+    private final TodoRepository todoRepository;
+    private final MemberRepository memberRepository;
+
+    @Override
+    @Transactional
+    public TodoResponse createTodo(Integer memberNo, TodoRequest request) {
+        Member member = memberRepository.findById(memberNo)
+                .orElseThrow(() -> new EntityNotFoundException("Member not found"));
+
+        Todo todo = new Todo();
+        todo.setTitle(request.getTitle());
+        todo.setDescription(request.getDescription());
+        todo.setCompleted(request.isCompleted());
+        todo.setMember(member);
+
+        return TodoResponse.from(todoRepository.save(todo));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TodoResponse> getTodos(Integer memberNo) {
+        return todoRepository.findByMemberNo(memberNo).stream()
+                .map(TodoResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TodoResponse getTodo(Integer memberNo, Integer todoNo) {
+        Todo todo = todoRepository.findById(todoNo)
+                .orElseThrow(() -> new EntityNotFoundException("Todo not found"));
+
+        if (!todo.getMember().getNo().equals(memberNo)) {
+            throw new IllegalStateException("Not authorized to access this todo");
+        }
+
+        return TodoResponse.from(todo);
+    }
+
+    @Override
+    @Transactional
+    public TodoResponse updateTodo(Integer memberNo, Integer todoNo, TodoRequest request) {
+        Todo todo = todoRepository.findById(todoNo)
+                .orElseThrow(() -> new EntityNotFoundException("Todo not found"));
+
+        if (!todo.getMember().getNo().equals(memberNo)) {
+            throw new IllegalStateException("Not authorized to update this todo");
+        }
+
+        todo.setTitle(request.getTitle());
+        todo.setDescription(request.getDescription());
+        todo.setCompleted(request.isCompleted());
+
+        return TodoResponse.from(todoRepository.save(todo));
+    }
+
+    @Override
+    @Transactional
+    public void deleteTodo(Integer memberNo, Integer todoNo) {
+        Todo todo = todoRepository.findById(todoNo)
+                .orElseThrow(() -> new EntityNotFoundException("Todo not found"));
+
+        if (!todo.getMember().getNo().equals(memberNo)) {
+            throw new IllegalStateException("Not authorized to delete this todo");
+        }
+
+        todoRepository.delete(todo);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<TodoResponse> searchTodos(Integer memberNo, String keyword) {
+        return todoRepository.searchByKeyword(memberNo, keyword).stream()
+                .map(TodoResponse::from)
+                .collect(Collectors.toList());
+    }
+}
+```
+
+마지막으로 Controller를 생성하겠습니다.
+```java
+package com.todo.api.todo.controller;
+
+import com.todo.api.todo.dto.TodoRequest;
+import com.todo.api.todo.dto.TodoResponse;
+import com.todo.api.todo.service.TodoService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/todos")
+@RequiredArgsConstructor
+public class TodoController {
+
+    private final TodoService todoService;
+
+    @PostMapping
+    public ResponseEntity<TodoResponse> createTodo(
+            @RequestAttribute("memberNo") Integer memberNo,
+            @RequestBody TodoRequest request) {
+        return ResponseEntity.ok(todoService.createTodo(memberNo, request));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<TodoResponse>> getTodos(
+            @RequestAttribute("memberNo") Integer memberNo) {
+        return ResponseEntity.ok(todoService.getTodos(memberNo));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<TodoResponse> getTodo(
+            @RequestAttribute("memberNo") Integer memberNo,
+            @PathVariable("id") Integer todoNo) {
+        return ResponseEntity.ok(todoService.getTodo(memberNo, todoNo));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TodoResponse> updateTodo(
+            @RequestAttribute("memberNo") Integer memberNo,
+            @PathVariable("id") Integer todoNo,
+            @RequestBody TodoRequest request) {
+        return ResponseEntity.ok(todoService.updateTodo(memberNo, todoNo, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTodo(
+            @RequestAttribute("memberNo") Integer memberNo,
+            @PathVariable("id") Integer todoNo) {
+        todoService.deleteTodo(memberNo, todoNo);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<TodoResponse>> searchTodos(
+            @RequestAttribute("memberNo") Integer memberNo,
+            @RequestParam String keyword) {
+        return ResponseEntity.ok(todoService.searchTodos(memberNo, keyword));
+    }
+}
+```
+
+TODO API의 기본적인 구현이 완료되었습니다. 구현된 기능은 다음과 같습니다:
+
+### 1. 도메인 모델 (`Todo.java`)
+- 제목, 설명, 완료 여부, 생성/수정 시간 등의 기본 정보 포함
+- Member와의 Many-to-One 관계 설정
+
+### 2. DTO
+- `TodoRequest.java`: TODO 생성/수정 요청 데이터
+- `TodoResponse.java`: TODO 응답 데이터
+
+### 3. Repository (`TodoRepository.java`)
+- 기본 CRUD 작업
+- 회원별 TODO 조회
+- 키워드 검색 기능
+
+### 4. Service (`TodoService.java`, `TodoServiceImpl.java`)
+- TODO 생성, 조회, 수정, 삭제 기능
+- 회원별 TODO 관리
+- 검색 기능
+
+### 5. Controller (`TodoController.java`)
+- RESTful API 엔드포인트 구현
+- 인증된 회원의 TODO 관리
+- 검색 API 제공
+
+모든 API는 인증된 회원만 접근할 수 있도록 구현되어 있으며, 각 회원은 자신의 TODO만 관리할 수 있습니다. 스펙에 맞춰 다음 엔드포인트들이 구현되었습니다:
+
+- POST /todos
+- GET /todos
+- GET /todos/{id}
+- PUT /todos/{id}
+- DELETE /todos/{id}
+- GET /todos/search
+
+추가적인 기능이나 수정이 필요하시다면 말씀해 주세요.
+
+## 요청
+
+최초 등록시에는 completed는 강제로 false여야 할 것이고, 그렇다면 request DTO를 분리하고 swagger에도 그렇게 설정 되어야 할 것 같은데? @TodoRequest.java, @TodoResponse.java, @TodoServiceImpl.java, @TodoController.java 
+
+## 응답
+
+정확히 맞는 지적입니다!  
+- **최초 등록(create)** 시에는 `completed` 값이 항상 `false`여야 하므로,  
+  등록용 요청 DTO와 수정용 요청 DTO를 분리하는 것이 좋습니다.  
+- Swagger 문서에도 등록 시에는 `completed` 필드가 노출되지 않도록 해야 합니다.
+
+아래와 같이 변경하겠습니다.
+
+---
+
+### 1. `TodoCreateRequest`와 `TodoUpdateRequest`로 분리
+
+#### `TodoCreateRequest.java` (신규 생성)
+```java
+package com.todo.api.todo.dto;
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class TodoCreateRequest {
+    private String title;
+    private String description;
+}
+```
+
+#### `TodoUpdateRequest.java` (신규 생성)
+```java
+package com.todo.api.todo.dto;
+
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+public class TodoUpdateRequest {
+    private String title;
+    private String description;
+    private boolean completed;
+}
+```
+
+---
+
+### 2. `TodoController.java`에서 요청 DTO 분리 및 Swagger 문서 반영
+
+- 등록(create)에는 `TodoCreateRequest` 사용,  
+- 수정(update)에는 `TodoUpdateRequest` 사용  
+- Swagger 파라미터 타입도 각각 맞게 지정
+
+---
+
+### 3. `TodoServiceImpl.java`에서 파라미터 타입 변경
+
+- 등록 메서드는 `TodoCreateRequest` 사용
+- 수정 메서드는 `TodoUpdateRequest` 사용
+
+---
+
+### 4. 기존 `TodoRequest.java`는 삭제
+
+---
+
+이렇게 변경하겠습니다. 진행하겠습니다!  
+
+Search files...  
+
+Ran tool  
+✅ **정상적으로 반영 완료!**
+
+### 변경 요약
+1. **등록용/수정용 DTO 분리**
+   - `TodoCreateRequest`(등록) : `title`, `description`만 포함, `completed` 없음
+   - `TodoUpdateRequest`(수정) : `title`, `description`, `completed` 포함
+
+2. **Controller/Service/Swagger 문서 모두 분리된 DTO로 반영**
+   - 등록(create): `TodoCreateRequest`
+   - 수정(update): `TodoUpdateRequest`
+   - Swagger 문서도 각각의 DTO로 명확하게 표시
+
+3. **기존 `TodoRequest` DTO는 삭제**
+
+---
+
+이제 최초 등록 시에는 `completed` 필드가 아예 노출되지 않고, 수정 시에만 `completed` 값을 받을 수 있습니다.  
+Swagger 문서에서도 각각의 요청 DTO가 올바르게 반영됩니다.  
+
+추가로 궁금한 점이나 개선 요청 있으면 말씀해 주세요!
