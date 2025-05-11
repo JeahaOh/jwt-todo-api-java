@@ -58,7 +58,7 @@ public class MemberServiceImpl implements MemberService {
       throw new CustomException(ErrorCode.MEMBER_PASSWORD_MISMATCH);
     }
 
-    String accessToken = jwtUtil.generateToken(member.getEmail());
+    String accessToken = jwtUtil.generateToken(member.getEmail(), member.getNo());
 
     return MemberDto.LoginResponse.builder()
         .accessToken(accessToken)
@@ -74,30 +74,20 @@ public class MemberServiceImpl implements MemberService {
 
   @Override
   public MemberDto.InfoResponse getCurrentMember() {
-    UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    if (userDetails == null) throw new CustomException(ErrorCode.USER_NOT_FOUND);
-
-    log.debug("userDetails : {}", userDetails);
-
-    Member member = memberRepository.findByEmail(userDetails.getUsername())
+    String jwt = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+    String email = jwtUtil.getEmailFromToken(jwt);
+    Member member = memberRepository.findByEmail(email)
         .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-    return MemberDto.InfoResponse.builder()
-        .no(member.getNo())
-        .email(member.getEmail())
-        .name(member.getName())
-        .createdAt(member.getCreatedAt())
-        .updatedAt(member.getUpdatedAt())
-        .build();
+    return MemberDto.InfoResponse.from(member);
   }
 
   @Override
   @Transactional
   public MemberDto.InfoResponse updateCurrentMember(MemberDto.UpdateRequest request) {
-    UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    if (userDetails == null) throw new CustomException(ErrorCode.USER_NOT_FOUND);
-
-    Member member = memberRepository.findByEmail(userDetails.getUsername())
+    String jwt = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+    String email = jwtUtil.getEmailFromToken(jwt);
+    Member member = memberRepository.findByEmail(email)
         .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
     if (request.getName() == null && request.getPassword() == null) {
@@ -114,20 +104,15 @@ public class MemberServiceImpl implements MemberService {
 
     Member updatedMember = memberRepository.save(member);
 
-    return MemberDto.InfoResponse.builder()
-        .no(updatedMember.getNo())
-        .email(updatedMember.getEmail())
-        .name(updatedMember.getName())
-        .createdAt(updatedMember.getCreatedAt())
-        .updatedAt(updatedMember.getUpdatedAt())
-        .build();
+    return MemberDto.InfoResponse.from(updatedMember);
   }
 
   @Override
   @Transactional
   public void deleteCurrentMember() {
-    UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-    Member member = memberRepository.findByEmail(userDetails.getUsername())
+    String jwt = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+    String email = jwtUtil.getEmailFromToken(jwt);
+    Member member = memberRepository.findByEmail(email)
         .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
     memberRepository.delete(member);

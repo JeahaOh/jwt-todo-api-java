@@ -19,6 +19,8 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(value = { Exception.class })
   public ResponseEntity<CustomResponse<?>> handleGenericException(Exception ex) {
+    log.error("CUZ : {}, MSG : {}", ex.getMessage(), ex.getMessage());
+    ex.printStackTrace();
     return ResponseEntity
         .status(HttpStatus.INTERNAL_SERVER_ERROR)
         .body(ResponseUtil.fail(ex));
@@ -26,6 +28,8 @@ public class GlobalExceptionHandler {
 
   @ExceptionHandler(value = { IllegalArgumentException.class, IllegalStateException.class })
   public ResponseEntity<CustomResponse<?>> handleBadRequest(RuntimeException ex) {
+    log.error("CUZ : {}, MSG : {}", ex.getMessage(), ex.getMessage());
+    ex.printStackTrace();
     return ResponseEntity
         .status(HttpStatus.BAD_REQUEST)
         .body(ResponseUtil.fail(HttpStatus.BAD_REQUEST, ex.getMessage()));

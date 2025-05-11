@@ -1,11 +1,12 @@
 package com.todo.api.mmbr.dto;
 
+import com.todo.api.mmbr.domain.Member;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Builder;
-import lombok.Data;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.time.LocalDateTime;
 
@@ -61,6 +62,7 @@ public class MemberDto {
   }
 
   @Getter
+  @Setter
   @Builder
   public static class InfoResponse {
     private Integer no;
@@ -68,6 +70,16 @@ public class MemberDto {
     private String name;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    public static InfoResponse from(Member member) {
+      return InfoResponse.builder()
+          .no(member.getNo())
+          .email(member.getEmail())
+          .name(member.getName())
+          .createdAt(member.getCreatedAt())
+          .updatedAt(member.getUpdatedAt())
+          .build();
+    }
   }
 
   @Getter

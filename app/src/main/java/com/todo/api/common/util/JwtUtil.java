@@ -10,6 +10,8 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -24,11 +26,15 @@ public class JwtUtil {
     return key;
   }
 
-  public String generateToken(String email) {
+  public String generateToken(String email, Integer memberNo) {
     Date now = new Date();
     Date expiryDate = new Date(now.getTime() + jwtConfig.getAccessTokenValidityInMinutes() * 60 * 1000);
 
+    Map<String, Object> claims = new HashMap<>();
+    claims.put("memberNo", memberNo);
+
     return Jwts.builder()
+        .setClaims(claims)
         .setSubject(email)
         .setIssuedAt(now)
         .setExpiration(expiryDate)
@@ -44,6 +50,16 @@ public class JwtUtil {
         .getBody();
 
     return claims.getSubject();
+  }
+
+  public Integer getMemberNoFromToken(String token) {
+    Claims claims = Jwts.parserBuilder()
+        .setSigningKey(getSigningKey())
+        .build()
+        .parseClaimsJws(token)
+        .getBody();
+
+    return claims.get("memberNo", Integer.class);
   }
 
   public boolean validateToken(String token) {
