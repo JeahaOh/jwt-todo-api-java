@@ -1,43 +1,38 @@
 package com.todo.api.controller;
 
+import com.todo.api.common.CustomResponse;
+import com.todo.api.common.util.ResponseUtil;
 import com.todo.api.dto.HealthCheckResponse;
+import com.todo.api.service.HealthCheckService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-
+@Slf4j
 @RestController
 @RequestMapping("/api/health")
 @Tag(name = "Health Check", description = "Health Check API")
+@RequiredArgsConstructor
 public class HealthCheckController {
 
-  @PersistenceContext
-  private EntityManager entityManager;
+  private final HealthCheckService healthCheckService;
 
   @GetMapping
   @Operation(summary = "Health Check", description = "서버 상태, 테이블 수, 응답 시간을 확인합니다.")
-  public HealthCheckResponse healthCheck() {
-    long startTime = System.currentTimeMillis();
+  public ResponseEntity<CustomResponse<HealthCheckResponse>> healthCheck() {
+    HealthCheckResponse response = healthCheckService.checkHealth();
+    return ResponseEntity.ok(ResponseUtil.success("Health check completed successfully", response));
+  }
 
-    // SQLite 테이블 수 조회
-    List<?> tables = entityManager.createNativeQuery(
-        "SELECT name FROM sqlite_master WHERE type='table'").getResultList();
-
-    long endTime = System.currentTimeMillis();
-    long responseTime = endTime - startTime;
-
-    return HealthCheckResponse.builder()
-        .status("UP")
-        .tableCount(tables.size())
-        .responseTime(responseTime)
-        .timestamp(LocalDateTime.now().format(DateTimeFormatter.ISO_DATE_TIME))
-        .build();
+  @GetMapping("/error")
+  @Operation(summary = "Error Test", description = "예외 발생을 테스트합니다.")
+  public ResponseEntity<CustomResponse<Void>> testError() {
+    healthCheckService.testError();
+    return ResponseEntity.ok().build();
   }
 }

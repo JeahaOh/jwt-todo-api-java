@@ -2,10 +2,13 @@
 
 ---
 ## 요청
+
+```txt
 .gitignore 파일 생성  
 mac os, windows os, linux os,  
 visual studio code, intellij, cursor IDE,  
 java, spring boot, swagger, docker, sql lite3  
+```
 
 ## 응답
 
@@ -155,8 +158,8 @@ __MACOSX/
 ⸻
 
 📌 추가 팁
-	•	팀원과 IDE 설정을 공유해야 한다면, .vscode/settings.json 또는 .idea/codeStyles 등의 예외만 수동으로 .gitignore에서 제거하면 됩니다.
-	•	**Swagger 스펙 파일(yaml/json)**은 자동 생성되는 경우 무시하는 게 일반적이지만, 수동 작성 시 .gitignore에서 제외해야 합니다.
+- 팀원과 IDE 설정을 공유해야 한다면, .vscode/settings.json 또는 .idea/codeStyles 등의 예외만 수동으로 .gitignore에서 제거하면 됩니다.
+- **Swagger 스펙 파일(yaml/json)**은 자동 생성되는 경우 무시하는 게 일반적이지만, 수동 작성 시 .gitignore에서 제외해야 합니다.
 
 ⸻
 
@@ -167,6 +170,7 @@ __MACOSX/
 
 ## 요청
 
+```txt
 사용자 관련 API와 TODO 관련 API를 RESTfull 한 설계를 하여 Backend application을 만들 예정. build.gradle의 dependencies에 들어갈 의존성 목록을 리스트업 해줘
 
 - java spring boot, 패키지 관리와 빌드 도구로 Gradle
@@ -174,6 +178,7 @@ __MACOSX/
 - JWT를 사용하여 보안 로그인,
 - SQLite3, JPA, hibernate, dialects
 - lombok, OpenAPI ui(swagger)
+```
 
 ## 응답
 
@@ -233,8 +238,8 @@ dependencies {
 ### 📌 추가 설명
 
 Hibernate Dialect 설정
-	•	hibernate-community-dialects는 SQLite 같은 비공식 DB 지원을 위해 필요하며,
-	•	application.yml 또는 application.properties에서 아래처럼 사용합니다:
+- hibernate-community-dialects는 SQLite 같은 비공식 DB 지원을 위해 필요하며,
+- application.yml 또는 application.properties에서 아래처럼 사용합니다:
 
 ```
 spring:
@@ -252,3 +257,319 @@ spring:
 이 구성은 사용자 인증(JWT 기반) + TODO CRUD API를 구현하는 RESTful Spring Boot 백엔드 프로젝트에 최적화되어 있습니다.
 
 필요하시면 JWT 필터 구성, Security 설정, Swagger 문서 설정, Entity 및 API 예시도 바로 도와드릴 수 있습니다. 어떤 부분부터 작업하시겠어요?
+
+---
+
+## 요청
+
+```
+spring boot 환경의 프로젝트에서 RESTfull API 개발시 정형화된 객체 반환을하기 위한 객체 및 구조 설계 도움 요청.
+Service Layer에서 반환하여 Controller에서 ResponseEntity를 반환할때 참고 하도록 함.
+
+- CustomResponse : 공통 응답 객체, 다음과 같은 구조
+    {
+        boolean : success
+        int : status
+        String : message
+        Object : data
+    }
+- ServiceResponseUtil : fail, success 메소드로 CustomResponse를 반환할 때 사용
+- GlobalExceptionHandler : @RestControllerAdvice를 사용 전역 예외처리
+```
+## 응답
+
+Spring Boot 환경에서 RESTful API의 정형화된 응답을 위한 객체 및 구조 설계를 도와드리겠습니다. 이 구조는 다음과 같은 기준을 충족합니다:
+- 모든 응답을 CustomResponse 형식으로 통일
+- Service Layer에서는 ServiceResponseUtil.success() 또는 fail()로 응답을 생성
+- Controller에서는 ResponseEntity<CustomResponse>로 반환
+- @RestControllerAdvice를 사용해 전역 예외를 일관된 응답 구조로 처리
+
+⸻
+
+### ✅ 1. CustomResponse 클래스
+```java
+public class CustomResponse<T> {
+    private boolean success;
+    private int status;
+    private String message;
+    private T data;
+
+    public CustomResponse(boolean success, int status, String message, T data) {
+        this.success = success;
+        this.status = status;
+        this.message = message;
+        this.data = data;
+    }
+    // Getter/Setter 생략 or Lombok 사용
+}
+```
+
+👉 제네릭을 사용해 어떤 타입의 data도 담을 수 있도록 설계합니다.
+
+⸻
+
+### ✅ 2. ServiceResponseUtil 유틸리티 클래스
+```java
+public class ServiceResponseUtil {
+
+    public static <T> CustomResponse<T> success(T data) {
+        return new CustomResponse<>(true, HttpStatus.OK.value(), "Success", data);
+    }
+
+    public static <T> CustomResponse<T> success(String message, T data) {
+        return new CustomResponse<>(true, HttpStatus.OK.value(), message, data);
+    }
+
+    public static CustomResponse<?> fail(HttpStatus status, String message) {
+        return new CustomResponse<>(false, status.value(), message, null);
+    }
+
+    public static CustomResponse<?> fail(Exception e) {
+        return new CustomResponse<>(false, HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage(), null);
+    }
+}
+```
+
+⸻
+
+### ✅ 3. Controller 예시 (응답 구조 적용)
+```java
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+
+    private final UserService userService;
+
+    @PostMapping("/signup")
+    public ResponseEntity<CustomResponse<?>> signup(@RequestBody SignupRequest request) {
+        UserDto createdUser = userService.signup(request);
+        return ResponseEntity.ok(ServiceResponseUtil.success("회원가입 성공", createdUser));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<CustomResponse<?>> getProfile() {
+        UserDto user = userService.getCurrentUser();
+        return ResponseEntity.ok(ServiceResponseUtil.success(user));
+    }
+}
+```
+
+
+⸻
+
+### ✅ 4. 전역 예외 처리 (GlobalExceptionHandler)
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(value = { IllegalArgumentException.class, IllegalStateException.class })
+    public ResponseEntity<CustomResponse<?>> handleBadRequest(RuntimeException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ServiceResponseUtil.fail(HttpStatus.BAD_REQUEST, ex.getMessage()));
+    }
+
+    @ExceptionHandler(value = { Exception.class })
+    public ResponseEntity<CustomResponse<?>> handleGenericException(Exception ex) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ServiceResponseUtil.fail(ex));
+    }
+}
+```
+✔ 예외 발생 시에도 CustomResponse 형태로 JSON 반환되므로 프론트엔드에서 예측 가능한 구조로 처리 가능
+
+⸻
+
+### ✅ 최종 응답 JSON 예시
+
+#### ✔ 성공
+```json
+{
+  "success": true,
+  "status": 200,
+  "message": "회원가입 성공",
+  "data": {
+    "id": 1,
+    "username": "jeaha",
+    "email": "example@test.com"
+  }
+}
+```
+#### ❌ 실패
+```json
+{
+  "success": false,
+  "status": 400,
+  "message": "잘못된 요청입니다",
+  "data": null
+}
+```
+
+
+⸻
+
+### 📌 보완 제안 (선택 사항)
+- enum 기반 메시지 및 코드 관리 (ErrorCode, SuccessCode)
+- CustomException 클래스를 만들어 예외 발생 시 에러 코드 기반 응답 가능
+- Page<T>와 함께 사용할 경우 커스텀 PaginationResponse로 감싸기
+
+⸻
+
+필요하시면 enum ErrorCode, CustomException, 또는 PageResponse 같은 확장 구조도 함께 설계해드릴게요. 추가로 도와드릴까요?
+
+## 요청 
+
+enum ErrorCode, CustomException 까지 확장 설계 요청
+
+## 응답
+
+좋습니다! RESTful API 프로젝트에서 예외 상황을 체계적으로 처리하기 위해 enum ErrorCode와 CustomException을 도입하는 것은 매우 좋은 설계입니다. 다음은 CustomResponse 구조와 잘 통합되는 확장 설계입니다.
+
+⸻
+
+### ✅ 1. ErrorCode Enum 설계
+```java
+public enum ErrorCode {
+    // 400 Bad Request
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
+    DUPLICATE_USER(HttpStatus.BAD_REQUEST, "이미 존재하는 사용자입니다."),
+    VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "입력값 검증 실패"),
+
+    // 401 Unauthorized
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "토큰이 유효하지 않습니다."),
+
+    // 403 Forbidden
+    FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
+
+    // 404 Not Found
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
+    TODO_NOT_FOUND(HttpStatus.NOT_FOUND, "TODO를 찾을 수 없습니다."),
+
+    // 500 Internal Server Error
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다.");
+
+    private final HttpStatus httpStatus;
+    private final String message;
+
+    ErrorCode(HttpStatus status, String message) {
+        this.httpStatus = status;
+        this.message = message;
+    }
+
+    public HttpStatus getHttpStatus() {
+        return httpStatus;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+}
+```
+
+
+⸻
+
+### ✅ 2. CustomException 클래스 설계
+```java
+public class CustomException extends RuntimeException {
+    private final ErrorCode errorCode;
+
+    public CustomException(ErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
+    }
+
+    public CustomException(ErrorCode errorCode, String detailMessage) {
+        super(detailMessage);
+        this.errorCode = errorCode;
+    }
+
+    public ErrorCode getErrorCode() {
+        return errorCode;
+    }
+}
+```
+
+
+⸻
+
+### ✅ 3. 예외 발생 시 사용 예
+```java
+if (userRepository.existsByEmail(request.getEmail())) {
+    throw new CustomException(ErrorCode.DUPLICATE_USER);
+}
+// 또는
+User user = userRepository.findById(id)
+    .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+```
+
+
+⸻
+
+### ✅ 4. GlobalExceptionHandler 수정
+```java
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(CustomException.class)
+    public ResponseEntity<CustomResponse<?>> handleCustomException(CustomException ex) {
+        ErrorCode code = ex.getErrorCode();
+        return ResponseEntity
+                .status(code.getHttpStatus())
+                .body(new CustomResponse<>(
+                        false,
+                        code.getHttpStatus().value(),
+                        code.getMessage(),
+                        null
+                ));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<CustomResponse<?>> handleAllUnhandled(Exception ex) {
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new CustomResponse<>(
+                        false,
+                        HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                        "처리되지 않은 오류가 발생했습니다.",
+                        null
+                ));
+    }
+}
+```
+
+
+⸻
+
+### ✅ 결과 예시 (에러 발생 시 JSON 응답)
+```json
+{
+  "success": false,
+  "status": 404,
+  "message": "사용자를 찾을 수 없습니다.",
+  "data": null
+}
+```
+
+
+⸻
+
+### 📦 구성 요약
+
+| 파일 | 설명 |
+| :--- | :--- |
+| ErrorCode.java | 에러 상황에 따른 상태코드/메시지 정의 |
+| CustomException.java | 비즈니스 예외를 코드 기반으로 처리 |
+| GlobalExceptionHandler.java | 일관된 오류 응답 처리 |
+| ServiceResponseUtil.java | 성공/실패 응답 객체 생성 |
+| CustomResponse.java | 통일된 응답 구조 |
+
+
+
+⸻
+
+이 구조는 유지보수가 쉽고, 프론트엔드와 협업할 때도 응답 패턴이 예측 가능하다는 장점이 있습니다.
+
+추가로 성공 코드(enum으로) 관리하거나 Validation 오류 묶기, 혹은 국제화 메시지 적용이 필요하시면 다음 단계로 안내드릴 수 있습니다. 원하시나요?
