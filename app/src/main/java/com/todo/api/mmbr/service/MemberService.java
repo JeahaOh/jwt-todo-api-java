@@ -4,13 +4,13 @@ import com.todo.api.mmbr.dto.*;
 
 public interface MemberService {
 
-  MemberSignUpResponse signUp(MemberSignUpRequest request);
+  MemberDto.SignUpResponse signUp(MemberDto.SignUpRequest request);
 
-  MemberLoginResponse login(MemberLoginRequest request);
+  MemberDto.LoginResponse login(MemberDto.LoginRequest request);
 
-  MemberInfoResponse getCurrentMember();
+  MemberDto.InfoResponse getCurrentMember();
 
-  MemberInfoResponse updateCurrentMember(MemberUpdateRequest request);
+  MemberDto.InfoResponse updateCurrentMember(MemberDto.UpdateRequest request);
 
   void deleteCurrentMember();
 }

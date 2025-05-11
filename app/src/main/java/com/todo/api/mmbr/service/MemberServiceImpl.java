@@ -28,7 +28,7 @@ public class MemberServiceImpl implements MemberService {
 
   @Override
   @Transactional
-  public MemberSignUpResponse signUp(MemberSignUpRequest request) {
+  public MemberDto.SignUpResponse signUp(MemberDto.SignUpRequest request) {
     if (memberRepository.existsByEmail(request.getEmail())) {
       throw new CustomException(ErrorCode.MEMBER_EMAIL_DUPLICATE);
     }
@@ -42,7 +42,7 @@ public class MemberServiceImpl implements MemberService {
 
     Member savedMember = memberRepository.save(member);
 
-    return MemberSignUpResponse.builder()
+    return MemberDto.SignUpResponse.builder()
         .no(savedMember.getNo())
         .email(savedMember.getEmail())
         .name(savedMember.getName())
@@ -50,7 +50,7 @@ public class MemberServiceImpl implements MemberService {
   }
 
   @Override
-  public MemberLoginResponse login(MemberLoginRequest request) {
+  public MemberDto.LoginResponse login(MemberDto.LoginRequest request) {
     Member member = memberRepository.findByEmail(request.getEmail())
         .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
@@ -60,9 +60,9 @@ public class MemberServiceImpl implements MemberService {
 
     String accessToken = jwtUtil.generateToken(member.getEmail());
 
-    return MemberLoginResponse.builder()
+    return MemberDto.LoginResponse.builder()
         .accessToken(accessToken)
-        .user(MemberLoginResponse.UserInfo.builder()
+        .user(MemberDto.LoginResponse.UserInfo.builder()
             .no(member.getNo())
             .email(member.getEmail())
             .name(member.getName())
@@ -73,7 +73,7 @@ public class MemberServiceImpl implements MemberService {
   }
 
   @Override
-  public MemberInfoResponse getCurrentMember() {
+  public MemberDto.InfoResponse getCurrentMember() {
     UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     if (userDetails == null) throw new CustomException(ErrorCode.USER_NOT_FOUND);
 
@@ -82,7 +82,7 @@ public class MemberServiceImpl implements MemberService {
     Member member = memberRepository.findByEmail(userDetails.getUsername())
         .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
 
-    return MemberInfoResponse.builder()
+    return MemberDto.InfoResponse.builder()
         .no(member.getNo())
         .email(member.getEmail())
         .name(member.getName())
@@ -93,7 +93,7 @@ public class MemberServiceImpl implements MemberService {
 
   @Override
   @Transactional
-  public MemberInfoResponse updateCurrentMember(MemberUpdateRequest request) {
+  public MemberDto.InfoResponse updateCurrentMember(MemberDto.UpdateRequest request) {
     UserDetails userDetails = (UserDetails) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     if (userDetails == null) throw new CustomException(ErrorCode.USER_NOT_FOUND);
 
@@ -114,7 +114,7 @@ public class MemberServiceImpl implements MemberService {
 
     Member updatedMember = memberRepository.save(member);
 
-    return MemberInfoResponse.builder()
+    return MemberDto.InfoResponse.builder()
         .no(updatedMember.getNo())
         .email(updatedMember.getEmail())
         .name(updatedMember.getName())
