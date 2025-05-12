@@ -1,0 +1,44 @@
+sequenceDiagram
+    participant Client as 클라이언트
+    participant Filter as JwtAuthenticationFilter
+    participant JwtUtil as JwtUtil
+    participant UserService as UserDetailsService
+    participant Security as SecurityContext
+    participant Controller as Controller
+
+    Note over Client: Bearer Token을 헤더에 포함
+    Client->>Filter: HTTP 요청<br/>Authorization: Bearer eyJhbGci...
+    
+    Filter->>Filter: getJwtFromRequest()<br/>헤더에서 JWT 추출
+    
+    alt Authorization 헤더가 없거나 잘못된 형식
+        Filter->>Controller: 필터 체인 계속<br/>(인증 없이)
+        Controller->>Client: 401 Unauthorized
+    end
+    
+    Filter->>JwtUtil: validateToken(jwt)
+    JwtUtil->>JwtUtil: 1. 서명 검증<br/>2. 만료 시간 확인
+    
+    alt 토큰 검증 실패
+        JwtUtil->>Filter: false
+        Filter->>Controller: 필터 체인 계속<br/>(인증 없이)
+        Controller->>Client: 401 Unauthorized
+    end
+    
+    JwtUtil->>Filter: true (유효한 토큰)
+    Filter->>JwtUtil: getEmailFromToken(jwt)
+    JwtUtil->>JwtUtil: parseClaimsJws(token)<br/>.getBody().getSubject()
+    JwtUtil->>Filter: email 반환
+    
+    Filter->>UserService: loadUserByUsername(email)
+    UserService->>UserService: DB에서 사용자 조회
+    UserService->>Filter: UserDetails 반환
+    
+    Filter->>Filter: UsernamePasswordAuthenticationToken 생성<br/>(jwt, null, authorities)
+    Filter->>Security: setAuthentication(authentication)<br/>인증 정보 저장
+    
+    Filter->>Controller: 필터 체인 계속<br/>(인증 완료)
+    Controller->>Controller: 비즈니스 로직 수행
+    Controller->>Client: 200 OK<br/>요청 처리 결과
+
+    Note over Client: 인증 성공!

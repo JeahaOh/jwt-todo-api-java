@@ -1,0 +1,41 @@
+sequenceDiagram
+    participant User as 사용자
+    participant Controller as LoginController
+    participant Service as MemberService
+    participant Repository as MemberRepository
+    participant JWT as JwtUtil
+    participant DB as Database
+
+    User->>Controller: POST /api/v1/login<br/>{email, password}
+    Controller->>Service: login(LoginRequest)
+    Service->>Repository: findByEmail(email)
+    Repository->>DB: SELECT * FROM member<br/>WHERE email = ?
+    DB->>Repository: Member 정보 반환
+    
+    alt 회원이 없을 때
+        Repository->>Service: Optional.empty()
+        Service->>Controller: MEMBER_NOT_FOUND (400)
+        Controller->>User: 400 Bad Request<br/>"존재하지 않는 회원입니다"
+    end
+    
+    Repository->>Service: Optional.of(member)
+    Service->>Service: passwordEncoder.matches()<br/>비밀번호 검증
+    
+    alt 비밀번호 불일치
+        Service->>Controller: MEMBER_PASSWORD_MISMATCH (400)
+        Controller->>User: 400 Bad Request<br/>"아이디 또는 비밀번호가 올바르지 않습니다"
+    end
+    
+    Service->>JWT: generateToken(email, memberNo)
+    
+    Note over JWT: 1. 현재 시간 설정
+    Note over JWT: 2. 만료 시간 계산
+    Note over JWT: 3. Claims 설정 (memberNo)
+    Note over JWT: 4. JWT 생성 및 서명
+    
+    JWT->>JWT: Jwts.builder()<br/>.setClaims(claims)<br/>.setSubject(email)<br/>.setIssuedAt(now)<br/>.setExpiration(expiryDate)<br/>.signWith(key, HS512)<br/>.compact()
+    
+    JWT->>Service: 서명된 JWT 토큰
+    Service->>Service: LoginResponse 빌드
+    Service->>Controller: LoginResponse<br/>{accessToken, user}
+    Controller->>User: 200 OK<br/>{<br/>  accessToken: "eyJhbGciOi...",<br/>  user: {...}<br/>}
