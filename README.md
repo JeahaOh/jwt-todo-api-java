@@ -7,24 +7,149 @@ AI Assistant(GPT 등)를 활용하여 전체 구현 및 테스트를 완료하�
 
 ## 🧰 기술 스택
 
+### Backend
+
 - Java 17
-- Spring Boot
+- Spring Boot 3.3.11
 - Spring Security + JWT
+    - JWT: jjwt-api 0.11.5
 - Spring Data JPA
 - SQLite3
-- JUnit5 + Mockito
+    - SQLite JDBC 3.42.0.0
 - Gradle
+
+### Testing
+
+- JUnit5
+- Mockito
+- Spring Test
+- Spring Security Test
+
+### Documentation
+
+- Swagger UI
+    - springdoc-openapi-starter-webmvc-ui 2.5.0
+- OpenAPI 3.0
+
+### Development Tools
+
+- Lombok
+- Spring Boot DevTools
 
 ---
 
+## 🏗️ 프로젝트 구조
+
+```txt
+app/
+  ├── src/
+  │    ├── main/
+  │    │    ├── java/
+  │    │    │     └── com/todo/api/
+  │    │    │          ├── common/ # 공통 모듈
+  │    │    │          ├── mmbr/ # 회원 관리
+  │    │    │          └── todo/ # TODO 관리
+  │    │    └── resources/
+  │    │          └── application.yml # 설정 파일
+  │    └── test/ # 테스트 코드
+  └── build.gradle # 빌드 설정
+```
+
+
 ## 🚀 실행 방법
 
+### 1. 사전 요구사항
+
+- Java 17 이상
+- Gradle 7.x 이상
+
+
+### 2. 프로젝트 실행
+
 ```bash
-# 1. Gradle 빌드
+# 실행 위치로 이동
+cd app
+
+# Gradle 빌드
 ./gradlew build
 
-# 2. 서버 실행
+# 서버 실행
 ./gradlew bootRun
+```
 
-# 3. 테스트 실행
+### 3. 테스트 실행
+```bash
+# 전체 테스트 실행
 ./gradlew test
+
+# 특정 테스트 실행
+./gradlew test --tests "com.todo.api.mmbr.*"
+```
+
+### 4. API 문서 확인
+
+- Swagger UI: http://localhost:8080/swagger-ui.html
+
+
+---
+
+## 🔐 API 인증
+
+### JWT 인증 흐름
+
+1. 회원가입 (`POST /users/signup`)
+2. 로그인 (`POST /users/login`)
+3. JWT 토큰 발급
+4. API 요청 시 Authorization 헤더에 토큰 포함
+
+### 인증 헤더 형식
+
+`Authorization: Bearer {JWT_TOKEN}`
+
+---
+
+## 📚 API 엔드포인트
+
+### 회원 관리
+
+- `POST /users/signup`: 회원가입
+- `POST /users/login`: 로그인
+- `GET /users/me`: 현재 사용자 정보 조회
+- `PUT /users/me`: 사용자 정보 수정
+- `DELETE /users/me`: 회원 탈퇴
+
+### TODO 관리
+
+- `POST /todos`: TODO 생성
+- `GET /todos`: TODO 목록 조회 (페이징, 정렬 지원)
+  - 정렬 기준: createdAt, updatedAt, no, title
+  - 정렬 방향: asc, desc
+  - 기본 페이지 크기: 10
+- `GET /todos/{id}`: 특정 TODO 조회
+- `PUT /todos/{id}`: TODO 수정
+- `DELETE /todos/{id}`: TODO 삭제
+- `GET /todos/search`: TODO 검색
+  - 키워드 검색 지원
+  - 페이징, 정렬 지원
+
+### 헬스 체크
+
+- `GET /api/health`: 서버 상태, 테이블 수, 응답 시간 확인
+- `GET /api/health/error`: 예외 발생 테스트
+
+---
+<!--
+## 🧪 테스트
+
+### 테스트 범위
+
+- 단위 테스트
+- 통합 테스트
+- API 테스트
+
+### 테스트 실행 결과
+- 테스트 커버리지: 80% 이상
+- 주요 기능 테스트 완료
+
+---
+-->

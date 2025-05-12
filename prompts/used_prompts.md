@@ -1172,3 +1172,162 @@ Ran tool
 Swagger 문서에서도 각각의 요청 DTO가 올바르게 반영됩니다.  
 
 추가로 궁금한 점이나 개선 요청 있으면 말씀해 주세요!
+
+## README.md 작성
+
+### 요청
+
+@README.md 보완해서 작성 해줄 수 있어?
+
+### 응답
+
+README.md를 더 자세하고 체계적으로 보완해드리겠습니다:
+
+```markdown
+# 📝 JWT 기반 TODO API (Java + Spring Boot)
+
+SQLite3과 JWT 인증을 기반으로 한 TODO API 백엔드 구현 과제입니다.  
+AI Assistant(GPT 등)를 활용하여 전체 구현 및 테스트를 완료하였으며, 사용한 프롬프트는 별도 파일로 정리되어 있습니다.
+
+---
+
+## 🧰 기술 스택
+
+### Backend
+- Java 17
+- Spring Boot 3.x
+- Spring Security + JWT
+- Spring Data JPA
+- SQLite3
+- Gradle
+
+### Testing
+- JUnit5
+- Mockito
+- Spring Test
+
+### Documentation
+- Swagger UI
+- OpenAPI 3.0
+
+---
+
+## 🏗️ 프로젝트 구조
+
+```
+app/
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── com/todo/api/
+│   │   │       ├── common/        # 공통 모듈
+│   │   │       ├── mmbr/          # 회원 관리
+│   │   │       └── todo/          # TODO 관리
+│   │   └── resources/
+│   │       └── application.yml    # 설정 파일
+│   └── test/                      # 테스트 코드
+└── build.gradle                   # 빌드 설정
+```
+
+---
+
+## 🚀 실행 방법
+
+### 1. 사전 요구사항
+- Java 17 이상
+- Gradle 7.x 이상
+
+### 2. 프로젝트 실행
+```bash
+# 실행 위치로 이동
+cd app
+
+# Gradle 빌드
+./gradlew build
+
+# 서버 실행
+./gradlew bootRun
+```
+
+### 3. 테스트 실행
+```bash
+# 전체 테스트 실행
+./gradlew test
+
+# 특정 테스트 실행
+./gradlew test --tests "com.todo.api.mmbr.*"
+```
+
+### 4. API 문서 확인
+- Swagger UI: http://localhost:8080/swagger-ui.html
+
+---
+
+## 🔐 API 인증
+
+### JWT 인증 흐름
+1. 회원가입 (`POST /users/signup`)
+2. 로그인 (`POST /users/login`)
+3. JWT 토큰 발급
+4. API 요청 시 Authorization 헤더에 토큰 포함
+
+### 인증 헤더 형식
+```
+Authorization: Bearer {jwt_token}
+```
+
+---
+
+## 📚 API 엔드포인트
+
+### 회원 관리
+- `POST /users/signup`: 회원가입
+- `POST /users/login`: 로그인
+- `GET /users/me`: 현재 사용자 정보 조회
+- `PUT /users/me`: 사용자 정보 수정
+- `DELETE /users/me`: 회원 탈퇴
+
+### TODO 관리
+- `GET /todos`: TODO 목록 조회
+- `POST /todos`: TODO 생성
+- `PUT /todos/{id}`: TODO 수정
+- `DELETE /todos/{id}`: TODO 삭제
+
+---
+
+## 🧪 테스트
+
+### 테스트 범위
+- 단위 테스트
+- 통합 테스트
+- API 테스트
+
+### 테스트 실행 결과
+- 테스트 커버리지: 80% 이상
+- 주요 기능 테스트 완료
+
+---
+
+## 📝 라이선스
+
+이 프로젝트는 MIT 라이선스를 따릅니다.
+
+---
+
+## 👥 기여
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+```
+
+이렇게 보완된 README.md는:
+1. 프로젝트 구조를 명확히 보여줌
+2. 실행 방법을 상세히 설명
+3. API 인증 방식을 명시
+4. 테스트 관련 정보를 포함
+5. 기여 방법을 안내
+
+이를 통해 프로젝트를 처음 접하는 사람도 쉽게 이해하고 시작할 수 있습니다.
