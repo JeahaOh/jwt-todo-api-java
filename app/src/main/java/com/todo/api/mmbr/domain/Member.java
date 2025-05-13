@@ -2,6 +2,7 @@ package com.todo.api.mmbr.domain;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -11,16 +12,14 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(
-        name = "member",
-        uniqueConstraints = {
+@Table(name = "member", uniqueConstraints = {
                 @UniqueConstraint(columnNames = "email")
-        }
-)
+})
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
+@Builder
 public class Member {
 
         @Id

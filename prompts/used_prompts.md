@@ -2621,3 +2621,444 @@ public class TodoController {
 
 ---
 
+## MemberServiceImpl 테스트코드 작성을 위한 조건 요청
+
+### 질문
+
+MemberServiceImpl을 테스트하기 위해 각 method에 대한 테스트 제목과 given, when, then 조건을 정리해줘
+
+```java
+import com.todo.api.common.constant.ErrorCode;
+import com.todo.api.common.exception.CustomException;
+import com.todo.api.common.util.JwtUtil;
+import com.todo.api.mmbr.domain.Member;
+import com.todo.api.mmbr.dto.*;
+import com.todo.api.mmbr.repository.MemberRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Transactional(readOnly = true)
+public class MemberServiceImpl implements MemberService {
+
+    private final MemberRepository memberRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtUtil jwtUtil;
+
+    @Override
+    @Transactional
+    public MemberDto.SignUpResponse signUp(MemberDto.SignUpRequest request) {
+        if (memberRepository.existsByEmail(request.getEmail())) {
+            throw new CustomException(ErrorCode.MEMBER_EMAIL_DUPLICATE);
+        }
+
+        String encodedPassword = passwordEncoder.encode(request.getPassword());
+
+        Member member = new Member();
+        member.setEmail(request.getEmail());
+        member.setName(request.getName());
+        member.setPassword(encodedPassword);
+
+        Member savedMember = memberRepository.save(member);
+
+        return MemberDto.SignUpResponse.builder()
+                .no(savedMember.getNo())
+                .email(savedMember.getEmail())
+                .name(savedMember.getName())
+                .build();
+    }
+
+    @Override
+    public MemberDto.LoginResponse login(MemberDto.LoginRequest request) {
+        Member member = memberRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+
+        if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
+            throw new CustomException(ErrorCode.MEMBER_PASSWORD_MISMATCH);
+        }
+
+        String accessToken = jwtUtil.generateToken(member.getEmail(), member.getNo());
+
+        return MemberDto.LoginResponse.builder()
+                .accessToken(accessToken)
+                .user(MemberDto.LoginResponse.UserInfo.builder()
+                        .no(member.getNo())
+                        .email(member.getEmail())
+                        .name(member.getName())
+                        .createdAt(member.getCreatedAt())
+                        .updatedAt(member.getUpdatedAt())
+                        .build())
+                .build();
+    }
+
+    @Override
+    public MemberDto.InfoResponse getCurrentMember() {
+        String jwt = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+        String email = jwtUtil.getEmailFromToken(jwt);
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+
+        return MemberDto.InfoResponse.from(member);
+    }
+
+    @Override
+    @Transactional
+    public MemberDto.InfoResponse updateCurrentMember(MemberDto.UpdateRequest request) {
+        String jwt = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+        String email = jwtUtil.getEmailFromToken(jwt);
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+
+        if (request.getName() == null && request.getPassword() == null) {
+            throw new CustomException(ErrorCode.MEMBER_UPDATE_NO_DATA);
+        }
+
+        if (request.getName() != null) {
+            member.setName(request.getName());
+        }
+        if (request.getPassword() != null) {
+            member.setPassword(passwordEncoder.encode(request.getPassword()));
+        }
+        member.setUpdatedAt(LocalDateTime.now());
+
+        Member updatedMember = memberRepository.save(member);
+
+        return MemberDto.InfoResponse.from(updatedMember);
+    }
+
+    @Override
+    @Transactional
+    public void deleteCurrentMember() {
+        String jwt = SecurityContextHolder.getContext().getAuthentication().getPrincipal().toString();
+        String email = jwtUtil.getEmailFromToken(jwt);
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException(ErrorCode.MEMBER_NOT_FOUND));
+
+        memberRepository.delete(member);
+    }
+}
+```
+
+### 응답
+
+다음은 MemberServiceImpl 클래스의 각 메소드에 대해 테스트 작성 시 사용할 수 있는 테스트 제목과 Given - When - Then 조건 정리입니다. 인증 정보는 SecurityContextHolder 및 JwtUtil을 통해 획득하는 구조이므로, 이들의 mocking도 필요합니다.
+
+⸻
+
+✅ signUp(MemberDto.SignUpRequest request)
+
+🧪 테스트 제목: “회원가입에 성공하면 회원 정보가 반환된다”
+	•	Given
+	•	요청 이메일이 DB에 존재하지 않는다.
+	•	유효한 SignUpRequest가 주어진다.
+	•	When
+	•	signUp() 메서드를 호출한다.
+	•	Then
+	•	MemberRepository.save()가 호출되며
+	•	반환된 SignUpResponse에는 저장된 회원 정보가 포함된다.
+
+🧪 테스트 제목: “이미 등록된 이메일로 회원가입 시 예외가 발생한다”
+	•	Given
+	•	요청 이메일이 이미 존재한다.
+	•	When
+	•	signUp() 메서드를 호출한다.
+	•	Then
+	•	CustomException(MEMBER_EMAIL_DUPLICATE) 예외가 발생한다.
+
+⸻
+
+✅ login(MemberDto.LoginRequest request)
+
+🧪 테스트 제목: “로그인에 성공하면 액세스 토큰과 회원 정보가 반환된다”
+	•	Given
+	•	이메일로 조회된 회원이 존재하고
+	•	비밀번호가 일치한다.
+	•	When
+	•	login() 메서드를 호출한다.
+	•	Then
+	•	jwtUtil.generateToken()이 호출되고
+	•	LoginResponse에 토큰과 유저 정보가 담겨 반환된다.
+
+🧪 테스트 제목: “존재하지 않는 이메일로 로그인 시 예외가 발생한다”
+	•	Given
+	•	이메일로 회원 조회 시 결과가 없다.
+	•	When
+	•	login() 메서드를 호출한다.
+	•	Then
+	•	CustomException(MEMBER_NOT_FOUND) 예외가 발생한다.
+
+🧪 테스트 제목: “비밀번호가 일치하지 않으면 로그인에 실패한다”
+	•	Given
+	•	이메일은 존재하지만 비밀번호가 일치하지 않는다.
+	•	When
+	•	login() 메서드를 호출한다.
+	•	Then
+	•	CustomException(MEMBER_PASSWORD_MISMATCH) 예외가 발생한다.
+
+⸻
+
+✅ getCurrentMember()
+
+🧪 테스트 제목: “현재 로그인된 회원 정보를 정상적으로 조회할 수 있다”
+	•	Given
+	•	SecurityContextHolder에서 인증 정보로 JWT가 존재하고
+	•	토큰에서 이메일을 추출할 수 있다.
+	•	이메일로 조회되는 회원이 존재한다.
+	•	When
+	•	getCurrentMember() 메서드를 호출한다.
+	•	Then
+	•	InfoResponse로 회원 정보가 반환된다.
+
+🧪 테스트 제목: “토큰으로 조회된 이메일이 존재하지 않으면 예외가 발생한다”
+	•	Given
+	•	이메일로 조회되는 회원이 없다.
+	•	When
+	•	getCurrentMember()를 호출한다.
+	•	Then
+	•	CustomException(MEMBER_NOT_FOUND) 예외가 발생한다.
+
+⸻
+
+✅ updateCurrentMember(MemberDto.UpdateRequest request)
+
+🧪 테스트 제목: “회원 정보 수정에 성공하면 수정된 정보를 반환한다”
+	•	Given
+	•	SecurityContext에서 JWT → 이메일 추출 가능
+	•	해당 이메일의 회원이 존재
+	•	이름과/또는 비밀번호가 수정 요청에 포함되어 있다.
+	•	When
+	•	updateCurrentMember() 메서드를 호출한다.
+	•	Then
+	•	수정된 정보로 memberRepository.save()가 호출되고
+	•	InfoResponse로 반환된다.
+
+🧪 테스트 제목: “이름과 비밀번호가 모두 없으면 수정할 수 없다”
+	•	Given
+	•	UpdateRequest에 name과 password가 둘 다 null이다.
+	•	When
+	•	updateCurrentMember() 호출
+	•	Then
+	•	CustomException(MEMBER_UPDATE_NO_DATA) 예외가 발생한다.
+
+🧪 테스트 제목: “수정 대상 회원이 존재하지 않으면 예외가 발생한다”
+	•	Given
+	•	JWT로 조회한 이메일에 해당하는 회원이 없다.
+	•	When
+	•	updateCurrentMember() 호출
+	•	Then
+	•	CustomException(MEMBER_NOT_FOUND) 예외가 발생한다.
+
+⸻
+
+✅ deleteCurrentMember()
+
+🧪 테스트 제목: “현재 로그인된 회원을 성공적으로 탈퇴 처리한다”
+	•	Given
+	•	SecurityContext에 JWT가 있고
+	•	해당 이메일로 조회되는 회원이 존재한다.
+	•	When
+	•	deleteCurrentMember() 메서드를 호출한다.
+	•	Then
+	•	해당 회원에 대해 memberRepository.delete()가 호출된다.
+
+🧪 테스트 제목: “탈퇴 대상 회원이 존재하지 않으면 예외가 발생한다”
+	•	Given
+	•	JWT에서 추출한 이메일로 회원을 찾을 수 없다.
+	•	When
+	•	deleteCurrentMember() 호출
+	•	Then
+	•	CustomException(MEMBER_NOT_FOUND) 예외가 발생한다.
+
+⸻
+
+이 테스트는 JUnit5 + Mockito 기반으로 작성 가능하며, SecurityContextHolder, JwtUtil, PasswordEncoder, MemberRepository를 모두 mocking 해야 합니다. 필요 시 각 테스트의 샘플 코드도 제공해 드릴 수 있습니다.
+
+## MemberController 테스트 코드 작성을 위한 조건 요청
+
+### 요청
+
+MemberServiceImpl을 테스트하기 위해 각 method에 대한 테스트 제목과 given, when, then 조건을 정리해줘
+
+```java
+package com.todo.api.mmbr.controller;
+
+import com.todo.api.common.CustomResponse;
+import com.todo.api.common.util.ResponseUtil;
+import com.todo.api.mmbr.service.MemberServiceImpl;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import com.todo.api.mmbr.dto.*;
+
+@RestController
+@RequestMapping("/users")
+@RequiredArgsConstructor
+@Tag(name = "01. Member", description = "회원 API")
+public class MemberController {
+
+  private final MemberServiceImpl memberService;
+
+  @PostMapping("/signup")
+  @Operation(summary = "회원 가입", description = "새로운 회원을 등록합니다.")
+  public ResponseEntity<CustomResponse<MemberDto.SignUpResponse>> signUp(
+      @Valid @RequestBody MemberDto.SignUpRequest request) {
+    MemberDto.SignUpResponse response = memberService.signUp(request);
+    return ResponseEntity.ok(ResponseUtil.success(response));
+  }
+
+  @PostMapping("/login")
+  @Operation(summary = "로그인", description = "이메일과 비밀번호로 로그인합니다.")
+  public ResponseEntity<CustomResponse<MemberDto.LoginResponse>> login(
+      @Valid @RequestBody MemberDto.LoginRequest request) {
+    MemberDto.LoginResponse response = memberService.login(request);
+    return ResponseEntity.ok(ResponseUtil.success(response));
+  }
+
+  @GetMapping("/me")
+  @Operation(summary = "현재 사용자 정보 조회", description = "현재 로그인한 사용자의 정보를 조회합니다.")
+  public ResponseEntity<CustomResponse<MemberDto.InfoResponse>> getCurrentMember() {
+    MemberDto.InfoResponse response = memberService.getCurrentMember();
+    return ResponseEntity.ok(ResponseUtil.success(response));
+  }
+
+  @PutMapping("/me")
+  @Operation(summary = "현재 사용자 정보 수정", description = "현재 로그인한 사용자의 정보를 수정합니다.")
+  public ResponseEntity<CustomResponse<MemberDto.InfoResponse>> updateCurrentMember(
+      @Valid @RequestBody MemberDto.UpdateRequest request) {
+    MemberDto.InfoResponse response = memberService.updateCurrentMember(request);
+    return ResponseEntity.ok(ResponseUtil.success(response));
+  }
+
+  @DeleteMapping("/me")
+  @Operation(summary = "현재 사용자 삭제", description = "현재 로그인한 사용자를 삭제합니다.")
+  public ResponseEntity<CustomResponse<Void>> deleteCurrentMember() {
+    memberService.deleteCurrentMember();
+    return ResponseEntity.ok(ResponseUtil.success(null));
+  }
+}
+```
+
+### 응답
+
+다음은 MemberController의 각 API 엔드포인트를 테스트하기 위한 테스트 제목과 Given - When - Then 조건을 정리한 것입니다. MemberServiceImpl의 실제 동작을 mock 처리하여, Controller 계층의 흐름 및 반환 값을 검증하는 데 초점을 맞춘 테스트 설계입니다.
+
+⸻
+
+✅ POST /users/signup - 회원가입
+
+🧪 테스트 제목: “회원가입 요청이 성공하면 회원 정보가 응답된다”
+	•	Given
+	•	유효한 SignUpRequest가 주어지고
+	•	memberService.signUp()이 정상적으로 SignUpResponse를 반환하도록 mock 설정한다.
+	•	When
+	•	POST /users/signup 요청을 보낸다.
+	•	Then
+	•	200 OK 상태와 함께 CustomResponse<SignUpResponse>가 반환된다.
+
+🧪 테스트 제목: “중복 이메일로 회원가입 시 4xx 에러가 반환된다”
+	•	Given
+	•	중복된 이메일을 가진 SignUpRequest가 주어지고
+	•	memberService.signUp()이 예외를 던지도록 설정한다.
+	•	When
+	•	POST /users/signup 요청을 보낸다.
+	•	Then
+	•	4xx Client Error 상태 코드가 반환된다 (예: 409 Conflict 혹은 400 Bad Request).
+
+⸻
+
+✅ POST /users/login - 로그인
+
+🧪 테스트 제목: “이메일과 비밀번호가 유효하면 로그인에 성공하고 토큰이 반환된다”
+	•	Given
+	•	유효한 LoginRequest가 주어지고
+	•	memberService.login()이 LoginResponse를 반환한다.
+	•	When
+	•	POST /users/login 요청을 보낸다.
+	•	Then
+	•	200 OK 상태와 함께 accessToken을 포함한 LoginResponse가 반환된다.
+
+🧪 테스트 제목: “비밀번호가 틀리면 로그인에 실패한다”
+	•	Given
+	•	LoginRequest가 주어지고
+	•	memberService.login()이 CustomException을 던지도록 설정한다.
+	•	When
+	•	POST /users/login 요청을 보낸다.
+	•	Then
+	•	401 Unauthorized 혹은 400 Bad Request와 같은 상태 코드가 반환된다.
+
+⸻
+
+✅ GET /users/me - 현재 사용자 정보 조회
+
+🧪 테스트 제목: “로그인된 사용자의 정보를 성공적으로 조회할 수 있다”
+	•	Given
+	•	memberService.getCurrentMember()가 정상적인 InfoResponse를 반환한다.
+	•	When
+	•	GET /users/me 요청을 보낸다.
+	•	Then
+	•	200 OK와 함께 해당 회원의 InfoResponse가 반환된다.
+
+🧪 테스트 제목: “존재하지 않는 사용자로 조회 시 예외가 발생한다”
+	•	Given
+	•	memberService.getCurrentMember()가 CustomException(MEMBER_NOT_FOUND)을 던진다.
+	•	When
+	•	GET /users/me 요청을 보낸다.
+	•	Then
+	•	404 Not Found 상태 코드가 반환된다.
+
+⸻
+
+✅ PUT /users/me - 현재 사용자 정보 수정
+
+🧪 테스트 제목: “사용자가 자신의 이름이나 비밀번호를 수정하면 정보가 갱신된다”
+	•	Given
+	•	유효한 UpdateRequest가 주어지고
+	•	memberService.updateCurrentMember()가 수정된 InfoResponse를 반환한다.
+	•	When
+	•	PUT /users/me 요청을 보낸다.
+	•	Then
+	•	200 OK와 함께 수정된 InfoResponse가 반환된다.
+
+🧪 테스트 제목: “수정할 정보가 없으면 예외가 발생한다”
+	•	Given
+	•	UpdateRequest가 name, password 둘 다 null이며
+	•	memberService.updateCurrentMember()가 CustomException(MEMBER_UPDATE_NO_DATA)를 던진다.
+	•	When
+	•	PUT /users/me 요청을 보낸다.
+	•	Then
+	•	400 Bad Request 상태 코드가 반환된다.
+
+⸻
+
+✅ DELETE /users/me - 현재 사용자 삭제
+
+🧪 테스트 제목: “사용자가 탈퇴하면 계정이 정상적으로 삭제된다”
+	•	Given
+	•	memberService.deleteCurrentMember()가 정상적으로 수행된다.
+	•	When
+	•	DELETE /users/me 요청을 보낸다.
+	•	Then
+	•	200 OK와 함께 CustomResponse<Void>가 반환된다.
+
+🧪 테스트 제목: “탈퇴 시 존재하지 않는 사용자면 예외가 발생한다”
+	•	Given
+	•	memberService.deleteCurrentMember()가 CustomException(MEMBER_NOT_FOUND)을 던진다.
+	•	When
+	•	DELETE /users/me 요청을 보낸다.
+	•	Then
+	•	404 Not Found 상태 코드가 반환된다.
+
+⸻
+
+각 테스트는 Spring Boot + WebMvcTest + MockMvc와 Mockito를 조합해 작성 가능하며, memberService를 mock bean으로 주입하고 요청 본문 및 반환 JSON을 검증하는 식으로 구현하면 됩니다. 원하시면 테스트 코드 샘플도 도와드릴 수 있습니다.

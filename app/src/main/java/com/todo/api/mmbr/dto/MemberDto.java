@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 
 public class MemberDto {
   @Getter
+  @Setter
   public static class SignUpRequest {
     @NotBlank(message = "이메일은 필수 입력값입니다.")
     @Email(message = "올바른 이메일 형식이 아닙니다.")
@@ -35,6 +36,7 @@ public class MemberDto {
   }
 
   @Getter
+  @Setter
   public static class LoginRequest {
     @NotBlank(message = "이메일은 필수 입력값입니다.")
     @Email(message = "올바른 이메일 형식이 아닙니다.")
@@ -83,6 +85,7 @@ public class MemberDto {
   }
 
   @Getter
+  @Setter
   public static class UpdateRequest {
     @Size(min = 2, max = 100, message = "이름은 2자 이상 100자 이하로 입력해주세요.")
     private String name;
