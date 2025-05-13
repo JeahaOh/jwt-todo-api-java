@@ -4,10 +4,12 @@ import com.todo.api.common.CustomResponse;
 import com.todo.api.common.constant.ErrorCode;
 import com.todo.api.common.util.ResponseUtil;
 import jakarta.persistence.EntityExistsException;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -51,6 +53,14 @@ public class GlobalExceptionHandler {
         .body(ResponseUtil.fail(HttpStatus.CONFLICT, e.getMessage()));
   }
 
+  @ExceptionHandler(EntityNotFoundException.class)
+  public ResponseEntity<CustomResponse<?>> handleEntityNotFoundException(EntityNotFoundException e) {
+    log.error("EntityNotFoundException: {}", e.getMessage());
+    return ResponseEntity
+        .status(HttpStatus.NOT_FOUND)
+        .body(ResponseUtil.fail(HttpStatus.NOT_FOUND, e.getMessage()));
+  }
+
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<CustomResponse<?>> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
     String message = e.getBindingResult().getFieldErrors().stream()
@@ -90,4 +100,29 @@ public class GlobalExceptionHandler {
         .body(ResponseUtil.fail(HttpStatus.BAD_REQUEST, message));
   }
 
+  @ExceptionHandler(AuthorizationDeniedException.class)
+  public ResponseEntity<CustomResponse<?>> handleAuthorizationDeniedException(AuthorizationDeniedException e) {
+    log.error("AuthorizationDeniedException: {}", e.getMessage());
+    return ResponseEntity
+        .status(HttpStatus.FORBIDDEN)
+        .body(ResponseUtil.fail(HttpStatus.FORBIDDEN, e.getMessage()));
+  }
+
+  @ExceptionHandler(value = { RuntimeException.class })
+  public ResponseEntity<CustomResponse<?>> handleRuntimeException(RuntimeException ex) {
+    log.error("CUZ : {}, MSG : {}", ex.getMessage(), ex.getMessage());
+
+    HttpStatus status;
+    if (ex.getMessage().contains("찾을 수 없습니다")) {
+      status = HttpStatus.NOT_FOUND;
+    } else if (ex.getMessage().contains("권한이 없습니다") || ex.getMessage().contains("접근")) {
+      status = HttpStatus.FORBIDDEN;
+    } else {
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+    }
+
+    return ResponseEntity
+        .status(status)
+        .body(ResponseUtil.fail(status, ex.getMessage()));
+  }
 }

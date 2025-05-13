@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
@@ -31,7 +32,9 @@ public class CustomAccessDeniedHandler implements AccessDeniedHandler {
     CustomResponse<?> customResponse = new CustomResponse<>(
         false,
         ErrorCode.FORBIDDEN.getHttpStatus().value(),
-        ErrorCode.FORBIDDEN.getMessage(),
+        accessDeniedException instanceof AuthorizationDeniedException
+            ? accessDeniedException.getMessage()
+            : ErrorCode.FORBIDDEN.getMessage(),
         null);
 
     response.getWriter().write(objectMapper.writeValueAsString(customResponse));
