@@ -1863,3 +1863,199 @@ Q1: ResponseEntity<CustomResponse<T>>로 감쌀 경우, 어떤 방식으로 HTTP
 Q2: ErrorCode를 분류별 패키지 또는 클래스 단위로 나누는 구조는 어떻게 리팩토링하면 좋을까?
 Q3: 커스텀 예외를 @ControllerAdvice와 함께 적용한 전역 예외 처리 테스트 코드는 어떻게 작성하면 좋을까?
 ```
+
+## JwtUtil에 대한 테스트 코드 조언
+
+다음 객체는 유틸성 기능 제공 역활을 책임지는데, 단위 테스트로 끝내도 괜찮을까? 가능하다면 간단한 테스트 코드도 부탁해
+
+```java
+@Component
+@RequiredArgsConstructor
+public class JwtUtil {
+  private final JwtConfig jwtConfig;
+  private Key key;
+
+  private Key getSigningKey() {
+    if (key == null) {
+      key = Keys.secretKeyFor(SignatureAlgorithm.HS512);
+    }
+    return key;
+  }
+
+  public String generateToken(String email, Integer memberNo) {
+    Date now = new Date();
+    Date expiryDate = new Date(now.getTime() + jwtConfig.getAccessTokenValidityInMinutes() * 60 * 1000);
+
+    Map<String, Object> claims = new HashMap<>();
+    claims.put("memberNo", memberNo);
+
+    return Jwts.builder()
+        .setClaims(claims)
+        .setSubject(email)
+        .setIssuedAt(now)
+        .setExpiration(expiryDate)
+        .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+        .compact();
+  }
+
+  public String getEmailFromToken(String token) {
+    Claims claims = Jwts.parserBuilder()
+        .setSigningKey(getSigningKey())
+        .build()
+        .parseClaimsJws(token)
+        .getBody();
+
+    return claims.getSubject();
+  }
+
+  public Integer getMemberNoFromToken(String token) {
+    Claims claims = Jwts.parserBuilder()
+        .setSigningKey(getSigningKey())
+        .build()
+        .parseClaimsJws(token)
+        .getBody();
+
+    return claims.get("memberNo", Integer.class);
+  }
+
+  public boolean validateToken(String token) {
+    try {
+      Jwts.parserBuilder()
+          .setSigningKey(getSigningKey())
+          .build()
+          .parseClaimsJws(token);
+      return true;
+    } catch (Exception e) {
+      return false;
+    }
+  }
+}
+```
+
+이 JwtUtil 객체는 비즈니스 로직보다는 유틸성 JWT 생성·파싱 기능을 제공하는 컴포넌트입니다. 이런 객체에 대해서는 단위 테스트(Unit Test) 로 충분하며, 통합 테스트(Integration Test) 까지 확장하지 않아도 괜찮습니다. 그 이유를 아래에 구체적으로 설명드릴게요.
+
+⸻
+
+✅ 단위 테스트만으로 충분한 이유
+
+1. 외부 의존성이 없음
+	•	JwtUtil의 핵심 로직은 모두 순수 자바 코드로 구성되어 있으며, JWT 문자열을 생성하고 파싱하는 역할만 합니다.
+	•	jwtConfig를 통해 만료 시간을 받아오긴 하지만, 이건 @Mock 또는 테스트용 빈을 통해 쉽게 대체할 수 있습니다.
+
+2. 부작용이 없는 순수 함수적 구성
+	•	generateToken, getEmailFromToken, getMemberNoFromToken, validateToken 모두 입력값에 따라 출력이 정해지는 pure function에 가깝습니다.
+	•	테스트가 쉽고 예측 가능하므로 단위 테스트에서 충분히 검증할 수 있습니다.
+
+3. 기능 자체가 독립적
+	•	이 유틸 클래스는 다른 서비스나 컨트롤러에 의해 호출되긴 하지만, 자신이 별도의 시스템 리소스(DB, 네트워크 등)와 연결되어 있지 않습니다.
+	•	따라서 JwtUtil이 포함된 전체 시스템의 통합 동작까지 테스트할 필요는 없습니다.
+
+⸻
+
+🧪 단위 테스트 권장 포인트
+
+다음과 같은 단위 테스트를 작성하면 충분합니다:
+	1.	토큰 생성 검증
+	•	generateToken(email, memberNo) 호출 후, 토큰을 파싱해서 subject와 memberNo가 잘 들어갔는지 확인
+	2.	토큰 파싱 메서드 검증
+	•	getEmailFromToken(token)과 getMemberNoFromToken(token)이 정확한 값을 반환하는지
+	3.	만료 시간 및 유효성 검증
+	•	만료 시간을 짧게 설정한 뒤 validateToken()이 false를 반환하는지 확인
+	4.	예외 처리
+	•	잘못된 토큰 입력 시 validateToken()이 false를 반환하는지
+
+⸻
+
+🔄 통합 테스트가 필요한 경우 (권장 X)
+
+다만, 다음의 조건에 해당된다면 통합 테스트도 고려할 수 있습니다:
+	•	JWT를 실제 HTTP 요청 헤더에 실어보내는 흐름을 검증하려는 경우
+	•	Spring Security 필터 체인과의 통합 동작을 검증해야 하는 경우
+	•	JwtConfig가 외부 설정값이나 Vault 등을 통해 복잡하게 주입되는 경우
+
+⸻
+
+🧾 결론
+
+현재 구조라면 단위 테스트만으로 충분합니다.
+통합 테스트는 JwtUtil을 사용하는 인증 필터나 컨트롤러 수준에서 필요할 수 있습니다.
+
+⸻
+
+아래는 JwtUtil 클래스에 대한 간단한 JUnit 5 + Mockito 기반 단위 테스트 예제입니다. 핵심 기능인 토큰 생성, 파싱, 검증을 커버하도록 구성했습니다.
+
+⸻
+
+✅ JwtUtil 단위 테스트 예제
+
+package com.todo.api.common.util;
+
+import com.todo.api.common.config.JwtConfig;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class JwtUtilTest {
+
+    private JwtUtil jwtUtil;
+    private JwtConfig jwtConfig;
+
+    @BeforeEach
+    void setUp() {
+        // jwtConfig mocking
+        jwtConfig = Mockito.mock(JwtConfig.class);
+        Mockito.when(jwtConfig.getAccessTokenValidityInMinutes()).thenReturn(10); // 10분 유효시간
+
+        jwtUtil = new JwtUtil(jwtConfig);
+    }
+
+    @Test
+    void testGenerateAndParseToken() {
+        String email = "test@example.com";
+        Integer memberNo = 123;
+
+        String token = jwtUtil.generateToken(email, memberNo);
+
+        assertNotNull(token);
+        assertTrue(jwtUtil.validateToken(token));
+        assertEquals(email, jwtUtil.getEmailFromToken(token));
+        assertEquals(memberNo, jwtUtil.getMemberNoFromToken(token));
+    }
+
+    @Test
+    void testInvalidToken() {
+        String invalidToken = "invalid.token.string";
+
+        assertFalse(jwtUtil.validateToken(invalidToken));
+    }
+
+    @Test
+    void testExpiredToken() throws InterruptedException {
+        // 1초짜리 만료 시간 설정
+        Mockito.when(jwtConfig.getAccessTokenValidityInMinutes()).thenReturn(0); // 0분 -> 바로 만료
+        jwtUtil = new JwtUtil(jwtConfig);
+
+        String token = jwtUtil.generateToken("test@example.com", 123);
+
+        // 유효 시간 지나도록 잠시 대기
+        Thread.sleep(1500);
+
+        assertFalse(jwtUtil.validateToken(token));
+    }
+}
+
+
+
+⸻
+
+📌 요약
+
+이 테스트에서는 다음을 검증합니다:
+	•	토큰이 정상적으로 생성되고 파싱되는지 (testGenerateAndParseToken)
+	•	잘못된 토큰이 유효하지 않음을 검증 (testInvalidToken)
+	•	만료된 토큰이 무효로 처리되는지 확인 (testExpiredToken)
+
+추가로 JWT에 넣는 claim을 더 확장한다면 테스트도 같이 늘려주시면 됩니다. 원하시면 MockMvc를 이용한 통합 테스트 예제도 도와드릴 수 있어요.
+
