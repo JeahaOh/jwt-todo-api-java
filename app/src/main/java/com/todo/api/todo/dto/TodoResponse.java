@@ -1,13 +1,19 @@
 package com.todo.api.todo.dto;
 
 import com.todo.api.todo.domain.Todo;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class TodoResponse {
   private Integer no;
   private String title;

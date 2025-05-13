@@ -2099,3 +2099,525 @@ class JwtUtilTest {
 
 이 테스트들은 각 컴포넌트의 주요 기능을 검증하며, 예외 상황도 포함하여 테스트합니다. 테스트를 실행하시려면 IDE나 Maven/Gradle을 통해 실행하시면 됩니다.
 
+## TodoServiceImpl 클래스를 테스트하기 위한 given, when, then 조건 요청
+
+### 질문
+
+TodoServiceImpl를 테스트하기 위해 아래 클래스의 각 메소드들을 테스트 하기 위한 given, when, then을 정리해줘
+
+```java
+@Service
+@RequiredArgsConstructor
+public class TodoServiceImpl implements TodoService {
+
+  private final TodoRepository todoRepository;
+  private final MemberRepository memberRepository;
+
+  @Override
+  @Transactional
+  public TodoResponse createTodo(Integer memberNo, TodoCreateRequest request) {
+    Member member = memberRepository.findById(memberNo)
+        .orElseThrow(() -> new EntityNotFoundException("Member not found"));
+
+    Todo todo = new Todo();
+    todo.setTitle(request.getTitle());
+    todo.setDescription(request.getDescription());
+    todo.setCompleted(false);
+    todo.setMember(member);
+
+    return TodoResponse.from(todoRepository.save(todo));
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<TodoResponse> getTodos(Integer memberNo, Pageable pageable) {
+    return todoRepository.findByMemberNo(memberNo, pageable)
+        .map(TodoResponse::from);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public TodoResponse getTodo(Integer memberNo, Integer todoNo) {
+    Todo todo = todoRepository.findById(todoNo)
+        .orElseThrow(() -> new EntityNotFoundException("Todo not found"));
+
+    if (!todo.getMember().getNo().equals(memberNo)) {
+      throw new IllegalStateException("Not authorized to access this todo");
+    }
+
+    return TodoResponse.from(todo);
+  }
+
+  @Override
+  @Transactional
+  public TodoResponse updateTodo(Integer memberNo, Integer todoNo, TodoUpdateRequest request) {
+    Todo todo = todoRepository.findById(todoNo)
+        .orElseThrow(() -> new EntityNotFoundException("Todo not found"));
+
+    if (!todo.getMember().getNo().equals(memberNo)) {
+      throw new IllegalStateException("Not authorized to update this todo");
+    }
+
+    todo.setTitle(request.getTitle());
+    todo.setDescription(request.getDescription());
+    todo.setCompleted(request.isCompleted());
+
+    return TodoResponse.from(todoRepository.save(todo));
+  }
+
+  @Override
+  @Transactional
+  public void deleteTodo(Integer memberNo, Integer todoNo) {
+    Todo todo = todoRepository.findById(todoNo)
+        .orElseThrow(() -> new EntityNotFoundException("Todo not found"));
+
+    if (!todo.getMember().getNo().equals(memberNo)) {
+      throw new IllegalStateException("Not authorized to delete this todo");
+    }
+
+    todoRepository.delete(todo);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<TodoResponse> searchTodos(Integer memberNo, String keyword, Pageable pageable) {
+    return todoRepository.searchByKeyword(memberNo, keyword, pageable)
+        .map(TodoResponse::from);
+  }
+}
+```
+
+### 응답
+
+다음은 TodoServiceImpl 클래스의 각 메소드에 대해 테스트 시 사용할 수 있는 Given-When-Then 형식의 테스트 시나리오입니다.
+
+⸻
+
+✅ createTodo(Integer memberNo, TodoCreateRequest request)
+
+✔️ 정상 케이스
+	•	Given
+	•	존재하는 memberNo가 주어지고
+	•	유효한 TodoCreateRequest가 주어진다.
+	•	When
+	•	createTodo()를 호출한다.
+	•	Then
+	•	새로운 Todo가 저장되고, TodoResponse가 반환된다.
+
+❌ 예외 케이스: 존재하지 않는 회원
+	•	Given
+	•	존재하지 않는 memberNo가 주어진다.
+	•	When
+	•	createTodo()를 호출한다.
+	•	Then
+	•	EntityNotFoundException이 발생한다.
+
+⸻
+
+✅ getTodos(Integer memberNo, Pageable pageable)
+
+✔️ 정상 케이스
+	•	Given
+	•	존재하는 memberNo와 Pageable이 주어진다.
+	•	When
+	•	getTodos()를 호출한다.
+	•	Then
+	•	해당 member의 TodoResponse 페이지가 반환된다.
+
+⸻
+
+✅ getTodo(Integer memberNo, Integer todoNo)
+
+✔️ 정상 케이스
+	•	Given
+	•	존재하는 memberNo와 todoNo가 주어진다.
+	•	해당 Todo가 해당 멤버의 소유이다.
+	•	When
+	•	getTodo()를 호출한다.
+	•	Then
+	•	해당 TodoResponse가 반환된다.
+
+❌ 예외 케이스: Todo 없음
+	•	Given
+	•	존재하지 않는 todoNo가 주어진다.
+	•	When
+	•	getTodo()를 호출한다.
+	•	Then
+	•	EntityNotFoundException이 발생한다.
+
+❌ 예외 케이스: 권한 없음
+	•	Given
+	•	존재하지만 다른 멤버가 소유한 todoNo가 주어진다.
+	•	When
+	•	getTodo()를 호출한다.
+	•	Then
+	•	IllegalStateException이 발생한다.
+
+⸻
+
+✅ updateTodo(Integer memberNo, Integer todoNo, TodoUpdateRequest request)
+
+✔️ 정상 케이스
+	•	Given
+	•	존재하는 memberNo, todoNo, 유효한 TodoUpdateRequest가 주어진다.
+	•	해당 Todo가 해당 멤버의 소유이다.
+	•	When
+	•	updateTodo()를 호출한다.
+	•	Then
+	•	Todo가 수정되고 TodoResponse가 반환된다.
+
+❌ 예외 케이스: Todo 없음
+	•	Given
+	•	존재하지 않는 todoNo가 주어진다.
+	•	When
+	•	updateTodo()를 호출한다.
+	•	Then
+	•	EntityNotFoundException이 발생한다.
+
+❌ 예외 케이스: 권한 없음
+	•	Given
+	•	다른 멤버의 todoNo가 주어진다.
+	•	When
+	•	updateTodo()를 호출한다.
+	•	Then
+	•	IllegalStateException이 발생한다.
+
+⸻
+
+✅ deleteTodo(Integer memberNo, Integer todoNo)
+
+✔️ 정상 케이스
+	•	Given
+	•	존재하는 memberNo와 해당 멤버가 소유한 todoNo가 주어진다.
+	•	When
+	•	deleteTodo()를 호출한다.
+	•	Then
+	•	해당 Todo가 삭제된다.
+
+❌ 예외 케이스: Todo 없음
+	•	Given
+	•	존재하지 않는 todoNo가 주어진다.
+	•	When
+	•	deleteTodo()를 호출한다.
+	•	Then
+	•	EntityNotFoundException이 발생한다.
+
+❌ 예외 케이스: 권한 없음
+	•	Given
+	•	다른 멤버가 소유한 todoNo가 주어진다.
+	•	When
+	•	deleteTodo()를 호출한다.
+	•	Then
+	•	IllegalStateException이 발생한다.
+
+⸻
+
+✅ searchTodos(Integer memberNo, String keyword, Pageable pageable)
+
+✔️ 정상 케이스
+	•	Given
+	•	존재하는 memberNo와 검색 keyword, Pageable이 주어진다.
+	•	When
+	•	searchTodos()를 호출한다.
+	•	Then
+	•	키워드를 포함하는 TodoResponse 페이지가 반환된다.
+
+⸻
+
+각 케이스는 JUnit 5 + Mockito를 활용해 단위 테스트로 구현하기에 적합합니다. 필요하다면 각 테스트 메소드에 대한 샘플 코드도 제공해 드릴 수 있습니다.
+
+## TodoController 테스트코드 작성을 위한 조건 요청
+
+### 질문
+
+```markdown
+TodoController를 테스트 하기 위해 각 endpoint에 대한 테스트 제목과 given, when, then 조건을 정리해줘
+
+```java
+package com.todo.api.todo.controller;
+
+import com.todo.api.common.CustomResponse;
+import com.todo.api.common.util.JwtUtil;
+import com.todo.api.common.util.ResponseUtil;
+import com.todo.api.todo.dto.TodoResponse;
+import com.todo.api.todo.dto.TodoCreateRequest;
+import com.todo.api.todo.dto.TodoUpdateRequest;
+import com.todo.api.todo.service.TodoService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/todos")
+@RequiredArgsConstructor
+@Tag(name = "02. Todo", description = "Todo API")
+public class TodoController {
+
+  private final TodoService todoService;
+  private final JwtUtil jwtUtil;
+
+  @Operation(summary = "Todo 등록", description = "새로운 Todo를 생성합니다. completed는 항상 false로 설정됩니다.")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "Todo 생성 성공", content = @Content(schema = @Schema(implementation = CustomResponse.class))),
+      @ApiResponse(responseCode = "401", description = "인증되지 않은 요청"),
+      @ApiResponse(responseCode = "404", description = "회원을 찾을 수 없음")
+  })
+  @PostMapping
+  public ResponseEntity<CustomResponse<TodoResponse>> createTodo(
+      @Parameter(hidden = true) Authentication authentication,
+      @Parameter(description = "Todo 생성 정보", required = true) @RequestBody TodoCreateRequest request) {
+    return ResponseEntity.ok(ResponseUtil.success(todoService.createTodo(getMemberNo(authentication), request)));
+  }
+
+  @Operation(summary = "모든 Todos 조회", description = "현재 로그인한 회원의 모든 Todo 목록을 페이징하여 조회합니다. 정렬 기준: createdAt(생성일), updatedAt(수정일), no, title")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "Todo 목록 조회 성공", content = @Content(schema = @Schema(implementation = CustomResponse.class))),
+      @ApiResponse(responseCode = "401", description = "인증되지 않은 요청")
+  })
+  @GetMapping
+  public ResponseEntity<CustomResponse<Page<TodoResponse>>> getTodos(
+      @Parameter(hidden = true) Authentication authentication,
+      @Parameter(description = "정렬 기준 (createdAt, updatedAt, no, title)", required = false) @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+      @Parameter(description = "정렬 방향 (asc, desc)", required = false) @RequestParam(required = false, defaultValue = "desc") String direction,
+      @PageableDefault(size = 10) Pageable pageable) {
+    Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
+    Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+    return ResponseEntity.ok(ResponseUtil.success(todoService.getTodos(getMemberNo(authentication), sortedPageable)));
+  }
+
+  @Operation(summary = "특정 Todo 조회", description = "특정 ID의 Todo를 조회합니다. 자신의 Todo만 조회 가능합니다.")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "Todo 조회 성공", content = @Content(schema = @Schema(implementation = CustomResponse.class))),
+      @ApiResponse(responseCode = "401", description = "인증되지 않은 요청"),
+      @ApiResponse(responseCode = "403", description = "접근 권한 없음"),
+      @ApiResponse(responseCode = "404", description = "Todo를 찾을 수 없음")
+  })
+  @GetMapping("/{id}")
+  public ResponseEntity<CustomResponse<TodoResponse>> getTodo(
+      @Parameter(hidden = true) Authentication authentication,
+      @Parameter(description = "Todo ID", required = true) @PathVariable("id") Integer todoNo) {
+    return ResponseEntity.ok(ResponseUtil.success(todoService.getTodo(getMemberNo(authentication), todoNo)));
+  }
+
+  @Operation(summary = "Todo 수정", description = "특정 ID의 Todo를 수정합니다. 자신의 Todo만 수정 가능합니다.")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "Todo 수정 성공", content = @Content(schema = @Schema(implementation = CustomResponse.class))),
+      @ApiResponse(responseCode = "401", description = "인증되지 않은 요청"),
+      @ApiResponse(responseCode = "403", description = "수정 권한 없음"),
+      @ApiResponse(responseCode = "404", description = "Todo를 찾을 수 없음")
+  })
+  @PutMapping("/{id}")
+  public ResponseEntity<CustomResponse<TodoResponse>> updateTodo(
+      @Parameter(hidden = true) Authentication authentication,
+      @Parameter(description = "Todo ID", required = true) @PathVariable("id") Integer todoNo,
+      @Parameter(description = "Todo 수정 정보", required = true) @RequestBody TodoUpdateRequest request) {
+    return ResponseEntity
+        .ok(ResponseUtil.success(todoService.updateTodo(getMemberNo(authentication), todoNo, request)));
+  }
+
+  @Operation(summary = "Todo 삭제", description = "특정 ID의 Todo를 삭제합니다. 자신의 Todo만 삭제 가능합니다.")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "Todo 삭제 성공", content = @Content(schema = @Schema(implementation = CustomResponse.class))),
+      @ApiResponse(responseCode = "401", description = "인증되지 않은 요청"),
+      @ApiResponse(responseCode = "403", description = "삭제 권한 없음"),
+      @ApiResponse(responseCode = "404", description = "Todo를 찾을 수 없음")
+  })
+  @DeleteMapping("/{id}")
+  public ResponseEntity<CustomResponse<Void>> deleteTodo(
+      @Parameter(hidden = true) Authentication authentication,
+      @Parameter(description = "Todo ID", required = true) @PathVariable("id") Integer todoNo) {
+    todoService.deleteTodo(getMemberNo(authentication), todoNo);
+    return ResponseEntity.ok(ResponseUtil.success(null));
+  }
+
+  @Operation(summary = "Todos 검색", description = "현재 로그인한 회원의 Todo 중에서 키워드로 검색합니다. 키워드가 없으면 모든 Todo를 조회합니다. 정렬 기준: createdAt(생성일), updatedAt(수정일), no, title")
+  @ApiResponses(value = {
+      @ApiResponse(responseCode = "200", description = "Todo 검색 성공", content = @Content(schema = @Schema(implementation = CustomResponse.class))),
+      @ApiResponse(responseCode = "401", description = "인증되지 않은 요청")
+  })
+  @GetMapping("/search")
+  public ResponseEntity<CustomResponse<Page<TodoResponse>>> searchTodos(
+      @Parameter(hidden = true) Authentication authentication,
+      @Parameter(description = "검색 키워드 (선택사항)", required = false) @RequestParam(required = false) String keyword,
+      @Parameter(description = "정렬 기준 (createdAt, updatedAt, no, title)", required = false) @RequestParam(required = false, defaultValue = "createdAt") String sortBy,
+      @Parameter(description = "정렬 방향 (asc, desc)", required = false) @RequestParam(required = false, defaultValue = "desc") String direction,
+      @PageableDefault(size = 10) Pageable pageable) {
+    Sort sort = Sort.by(Sort.Direction.fromString(direction), sortBy);
+    Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+    return ResponseEntity
+        .ok(ResponseUtil.success(todoService.searchTodos(getMemberNo(authentication), keyword, sortedPageable)));
+  }
+
+  private Integer getMemberNo(Authentication authentication) {
+    if (authentication == null || !authentication.isAuthenticated()) {
+      throw new IllegalStateException("인증되지 않은 사용자입니다.");
+    }
+    return jwtUtil.getMemberNoFromToken(authentication.getPrincipal().toString());
+  }
+}
+```
+
+### 응답
+
+다음은 TodoController의 각 API 엔드포인트에 대한 테스트 케이스를 테스트 제목과 함께 Given - When - Then 형식으로 정리한 내용입니다. 보안 토큰 기반 인증(Authentication), JwtUtil, 그리고 TodoService의 내부 호출 결과를 고려한 시나리오입니다.
+
+⸻
+
+✅ POST /todos - Todo 등록
+
+🧪 테스트 제목: “인증된 사용자가 Todo를 정상적으로 등록할 수 있다”
+	•	Given
+	•	유효한 인증 정보(Authentication)와
+	•	유효한 TodoCreateRequest가 주어진다.
+	•	When
+	•	POST /todos 요청을 보낸다.
+	•	Then
+	•	200 OK 응답과 함께 생성된 TodoResponse가 반환된다.
+
+🧪 테스트 제목: “존재하지 않는 사용자로 요청할 경우 404 예외가 발생한다”
+	•	Given
+	•	인증 정보는 유효하지만, memberNo에 해당하는 사용자가 없다.
+	•	When
+	•	POST /todos 요청을 보낸다.
+	•	Then
+	•	404 Not Found 예외 응답이 반환된다.
+
+⸻
+
+✅ GET /todos - 전체 Todo 조회 (페이징)
+
+🧪 테스트 제목: “사용자가 자신의 Todo 리스트를 정렬하여 페이징으로 조회할 수 있다”
+	•	Given
+	•	유효한 인증 정보와
+	•	정렬 조건(sortBy, direction) 및 Pageable 객체가 주어진다.
+	•	When
+	•	GET /todos 요청을 보낸다.
+	•	Then
+	•	200 OK 응답과 함께 해당 사용자의 Todo 목록(Page) 결과가 반환된다.
+
+⸻
+
+✅ GET /todos/{id} - 특정 Todo 조회
+
+🧪 테스트 제목: “사용자가 자신의 Todo를 정상적으로 조회할 수 있다”
+	•	Given
+	•	유효한 인증 정보와
+	•	자신이 소유한 Todo의 ID가 주어진다.
+	•	When
+	•	GET /todos/{id} 요청을 보낸다.
+	•	Then
+	•	200 OK와 함께 해당 TodoResponse가 반환된다.
+
+🧪 테스트 제목: “존재하지 않는 Todo를 조회할 경우 404 예외가 발생한다”
+	•	Given
+	•	유효한 인증 정보와
+	•	존재하지 않는 Todo ID가 주어진다.
+	•	When
+	•	GET /todos/{id} 요청을 보낸다.
+	•	Then
+	•	404 Not Found 응답이 반환된다.
+
+🧪 테스트 제목: “다른 사용자의 Todo를 조회할 경우 403 예외가 발생한다”
+	•	Given
+	•	유효한 인증 정보와
+	•	타인이 소유한 Todo ID가 주어진다.
+	•	When
+	•	GET /todos/{id} 요청을 보낸다.
+	•	Then
+	•	403 Forbidden 응답이 반환된다.
+
+⸻
+
+✅ PUT /todos/{id} - Todo 수정
+
+🧪 테스트 제목: “사용자가 자신의 Todo를 정상적으로 수정할 수 있다”
+	•	Given
+	•	유효한 인증 정보, 자신의 Todo ID, 유효한 TodoUpdateRequest가 주어진다.
+	•	When
+	•	PUT /todos/{id} 요청을 보낸다.
+	•	Then
+	•	200 OK 응답과 함께 수정된 TodoResponse가 반환된다.
+
+🧪 테스트 제목: “다른 사용자의 Todo를 수정할 경우 403 예외가 발생한다”
+	•	Given
+	•	유효한 인증 정보와 타인이 소유한 Todo ID가 주어진다.
+	•	When
+	•	PUT /todos/{id} 요청을 보낸다.
+	•	Then
+	•	403 Forbidden 응답이 반환된다.
+
+🧪 테스트 제목: “존재하지 않는 Todo를 수정할 경우 404 예외가 발생한다”
+	•	Given
+	•	유효한 인증 정보와 존재하지 않는 Todo ID가 주어진다.
+	•	When
+	•	PUT /todos/{id} 요청을 보낸다.
+	•	Then
+	•	404 Not Found 응답이 반환된다.
+
+⸻
+
+✅ DELETE /todos/{id} - Todo 삭제
+
+🧪 테스트 제목: “사용자가 자신의 Todo를 정상적으로 삭제할 수 있다”
+	•	Given
+	•	유효한 인증 정보와 자신의 Todo ID가 주어진다.
+	•	When
+	•	DELETE /todos/{id} 요청을 보낸다.
+	•	Then
+	•	200 OK 응답이 반환되며, body는 null이다.
+
+🧪 테스트 제목: “다른 사용자의 Todo를 삭제할 경우 403 예외가 발생한다”
+	•	Given
+	•	유효한 인증 정보와 타인의 Todo ID가 주어진다.
+	•	When
+	•	DELETE /todos/{id} 요청을 보낸다.
+	•	Then
+	•	403 Forbidden 응답이 반환된다.
+
+🧪 테스트 제목: “존재하지 않는 Todo를 삭제할 경우 404 예외가 발생한다”
+	•	Given
+	•	유효한 인증 정보와 존재하지 않는 Todo ID가 주어진다.
+	•	When
+	•	DELETE /todos/{id} 요청을 보낸다.
+	•	Then
+	•	404 Not Found 응답이 반환된다.
+
+⸻
+
+✅ GET /todos/search - Todo 검색
+
+🧪 테스트 제목: “사용자가 키워드로 자신의 Todo를 검색할 수 있다”
+	•	Given
+	•	유효한 인증 정보와 검색 키워드 및 정렬, 페이징 조건이 주어진다.
+	•	When
+	•	GET /todos/search 요청을 보낸다.
+	•	Then
+	•	200 OK 응답과 함께 키워드가 포함된 Todo 리스트(Page)가 반환된다.
+
+🧪 테스트 제목: “검색 키워드가 없을 경우 전체 Todo가 반환된다”
+	•	Given
+	•	유효한 인증 정보와 키워드 없이 정렬 및 페이징 조건만 주어진다.
+	•	When
+	•	GET /todos/search 요청을 보낸다.
+	•	Then
+	•	전체 Todo 리스트(Page)가 반환된다.
+
+⸻
+
+이 테스트들은 Spring Boot + MockMvc + JUnit5 + Mockito를 활용해 작성하기 적합하며, 인증 처리 및 JwtUtil mocking을 병행하는 방식으로 단위 또는 통합 테스트를 구성할 수 있습니다. 필요하다면 각 테스트의 구현 코드도 제공해 드릴 수 있습니다.
+
+---
+
