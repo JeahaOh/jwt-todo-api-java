@@ -6,6 +6,7 @@ import com.todo.api.common.exception.CustomException;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.springframework.http.HttpStatus;
 
 import java.util.Arrays;
@@ -14,6 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
+@Tag("unit")
 class ResponseUtilTest {
 
     @Nested

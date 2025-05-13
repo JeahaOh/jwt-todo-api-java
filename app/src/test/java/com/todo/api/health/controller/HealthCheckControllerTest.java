@@ -4,6 +4,7 @@ import com.todo.api.common.CustomResponse;
 import com.todo.api.health.dto.HealthCheckResponse;
 import com.todo.api.health.service.HealthCheckService;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@Tag("unit")
 class HealthCheckControllerTest {
 
   @Mock

@@ -2,10 +2,12 @@ package com.todo.api.common.constant;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.springframework.http.HttpStatus;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
+@Tag("unit")
 public class ErrorCodeTest {
     @Test
     @DisplayName("에러코드 enum 값이 정확한지 확인")
