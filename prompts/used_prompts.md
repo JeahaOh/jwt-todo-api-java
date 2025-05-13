@@ -2059,3 +2059,43 @@ class JwtUtilTest {
 
 추가로 JWT에 넣는 claim을 더 확장한다면 테스트도 같이 늘려주시면 됩니다. 원하시면 MockMvc를 이용한 통합 테스트 예제도 도와드릴 수 있어요.
 
+## Health Package 테스트 코드 요청
+
+### 요청
+
+@HealthCheckController.java @HealthCheckService.java
+해당 클래스들도 테스트 코드 작성 할 수 있어?
+
+### 응답
+
+네, HealthCheckController와 HealthCheckService에 대한 테스트 코드를 작성해드리겠습니다. 먼저 테스트 파일들을 생성하겠습니다.
+
+먼저 HealthCheckService 테스트를 작성하겠습니다:
+
+이제 HealthCheckController 테스트를 작성하겠습니다:
+
+작성된 테스트 코드에 대해 설명드리겠습니다:
+
+1. **HealthCheckServiceTest**:
+   - `EntityManager`와 `Query`를 Mock으로 생성하여 데이터베이스 의존성을 제거했습니다.
+   - `checkHealth()` 테스트에서는:
+     - Mock 테이블 목록을 생성하고 반환하도록 설정
+     - 응답의 각 필드가 예상대로 반환되는지 검증
+   - `testError()` 테스트에서는:
+     - 메소드가 예상된 예외들 중 하나를 발생시키는지 검증
+
+2. **HealthCheckControllerTest**:
+   - `HealthCheckService`를 Mock으로 생성하여 서비스 계층 의존성을 제거했습니다.
+   - `healthCheck()` 테스트에서는:
+     - Mock 응답을 생성하고 서비스에서 반환하도록 설정
+     - HTTP 응답 상태 코드와 응답 본문이 예상대로 반환되는지 검증
+   - `testError()` 테스트에서는:
+     - 서비스에서 예외가 발생했을 때 컨트롤러가 적절히 처리하는지 검증
+
+테스트를 실행하기 위해서는 다음 의존성들이 필요합니다:
+- JUnit 5
+- Mockito
+- AssertJ
+
+이 테스트들은 각 컴포넌트의 주요 기능을 검증하며, 예외 상황도 포함하여 테스트합니다. 테스트를 실행하시려면 IDE나 Maven/Gradle을 통해 실행하시면 됩니다.
+
