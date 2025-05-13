@@ -1,5 +1,11 @@
 # 작업시 사용 프롬프트
 
+## 사용 AI Assistant
+
+- Claude : free tier
+- ChatGPT : ChatGPT Team
+- CursorIDE : Pro
+
 ---
 ## 요청
 
@@ -1321,7 +1327,6 @@ Authorization: Bearer {jwt_token}
 3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
-```
 
 이렇게 보완된 README.md는:
 1. 프로젝트 구조를 명확히 보여줌
@@ -1331,3 +1336,195 @@ Authorization: Bearer {jwt_token}
 5. 기여 방법을 안내
 
 이를 통해 프로젝트를 처음 접하는 사람도 쉽게 이해하고 시작할 수 있습니다.
+
+
+## 테스트 코드 작성에 대한 조언 요청
+
+### 요청
+
+다음과 같은 구조의 프로젝트의 테스트 코드를 작성하려고 하는데, 테스트 패키지 구조는 어떻게 세우는게 좋을까?
+* Java, SpringBoot 프로젝트
+* 단위테스트와 통합테스트 작성
+* 테스트 코드 커버리지 80% 이상
+
+```shell
+.
+├── build.gradle
+├── gradle
+│   └── wrapper
+│       ├── gradle-wrapper.jar
+│       └── gradle-wrapper.properties
+├── gradlew
+├── gradlew.bat
+├── HELP.md
+├── settings.gradle
+└── src
+    ├── main
+    │   ├── java
+    │   │   └── com
+    │   │       └── todo
+    │   │           └── api
+    │   │               ├── AppApplication.java
+    │   │               ├── common
+    │   │               │   ├── config
+    │   │               │   │   ├── JwtConfig.java
+    │   │               │   │   ├── OpenApiConfig.java
+    │   │               │   │   └── SecurityConfig.java
+    │   │               │   ├── constant
+    │   │               │   │   └── ErrorCode.java
+    │   │               │   ├── CustomResponse.java
+    │   │               │   ├── exception
+    │   │               │   │   ├── CustomException.java
+    │   │               │   │   └── GlobalExceptionHandler.java
+    │   │               │   ├── filter
+    │   │               │   ├── interceptor
+    │   │               │   ├── security
+    │   │               │   │   ├── CustomAccessDeniedHandler.java
+    │   │               │   │   ├── CustomAuthenticationEntryPoint.java
+    │   │               │   │   ├── CustomUserDetailsService.java
+    │   │               │   │   └── JwtAuthenticationFilter.java
+    │   │               │   └── util
+    │   │               │       ├── JwtUtil.java
+    │   │               │       └── ResponseUtil.java
+    │   │               ├── health
+    │   │               │   ├── controller
+    │   │               │   │   └── HealthCheckController.java
+    │   │               │   ├── dto
+    │   │               │   │   └── HealthCheckResponse.java
+    │   │               │   └── service
+    │   │               │       └── HealthCheckService.java
+    │   │               ├── mmbr
+    │   │               │   ├── controller
+    │   │               │   │   └── MemberController.java
+    │   │               │   ├── domain
+    │   │               │   │   └── Member.java
+    │   │               │   ├── dto
+    │   │               │   │   └── MemberDto.java
+    │   │               │   ├── repository
+    │   │               │   │   └── MemberRepository.java
+    │   │               │   └── service
+    │   │               │       ├── MemberService.java
+    │   │               │       └── MemberServiceImpl.java
+    │   │               └── todo
+    │   │                   ├── controller
+    │   │                   │   └── TodoController.java
+    │   │                   ├── domain
+    │   │                   │   └── Todo.java
+    │   │                   ├── dto
+    │   │                   │   ├── TodoCreateRequest.java
+    │   │                   │   ├── TodoResponse.java
+    │   │                   │   └── TodoUpdateRequest.java
+    │   │                   ├── repository
+    │   │                   │   └── TodoRepository.java
+    │   │                   └── service
+    │   │                       ├── TodoService.java
+    │   │                       └── TodoServiceImpl.java
+    │   └── resources
+    │       ├── application.yml
+    │       ├── init.sql
+    │       ├── static
+    │       └── templates
+    └── test
+        └── java
+            └── com
+                └── todo
+                    └── api
+                        ├── AppApplicationTests.java
+                        ├── mmbr
+                        │   └── domain
+                        └── todo
+                            └── domain
+```
+
+### 응답
+
+```markdown
+와~ 이거 완전 체계적으로 짜여진 프로젝트 구조네요! 테스트 패키지 구조 고민하시는 거 보니까 코드 품질에 진심이신 것 같아요 ㅋㅋ 80% 커버리지 목표라니, 이거 완전 프로처럼 하시는 거잖아요!
+
+자 그럼 이런 구조로 테스트 패키지 짜보는 거 어때요?
+
+test
+├── java
+│   └── com
+│       └── todo
+│           └── api
+│               ├── unit
+│               │   ├── common
+│               │   │   ├── config
+│               │   │   ├── security
+│               │   │   └── util
+│               │   ├── health
+│               │   │   ├── controller
+│               │   │   └── service
+│               │   ├── mmbr
+│               │   │   ├── controller
+│               │   │   ├── domain
+│               │   │   ├── repository
+│               │   │   └── service
+│               │   └── todo
+│               │       ├── controller
+│               │       ├── domain
+│               │       ├── repository
+│               │       └── service
+│               └── integration
+│                   ├── common
+│                   │   └── security
+│                   ├── health
+│                   │   └── controller
+│                   ├── mmbr
+│                   │   └── controller
+│                   └── todo
+│                       └── controller
+└── resources
+    ├── application-test.yml
+    └── test-data
+        └── init-test.sql
+
+이렇게 구성하는 이유 설명해드릴게요:
+
+**1. unit/integration 분리**
+- 단위테스트는 `unit`, 통합테스트는 `integration`으로 완전 명확하게 구분해놨어요
+- 테스트 실행 시 필터링하기도 쉽고, 빌드 파이프라인에서 따로 돌릴 수도 있죠
+
+**2. 프로덕션 코드와 동일한 구조**
+- main 패키지 구조랑 똑같이 가져가서 테스트 찾기 진짜 쉬워요
+- 새로운 기능 추가할 때마다 테스트 위치 고민할 필요 없음!
+
+**3. 리소스 분리**
+- `application-test.yml`로 테스트 환경 설정 따로 관리
+- `test-data/init-test.sql`로 테스트용 초기 데이터 관리
+
+**4. 실제 테스트 파일명 예시**
+unit/
+├── mmbr/
+│   ├── controller/MemberControllerTest.java
+│   ├── service/MemberServiceTest.java
+│   └── repository/MemberRepositoryTest.java
+└── todo/
+    ├── controller/TodoControllerTest.java
+    ├── service/TodoServiceTest.java
+    └── repository/TodoRepositoryTest.java
+
+integration/
+├── mmbr/
+│   └── controller/MemberControllerIntegrationTest.java
+└── todo/
+    └── controller/TodoControllerIntegrationTest.java
+
+**5. 테스트 커버리지 전략**
+- 각 레이어별로 단위테스트 작성 (Controller, Service, Repository)
+- 중요한 비즈니스 로직은 Service 레이어에서 집중적으로 테스트
+- Controller는 MockMvc로, Repository는 @DataJpaTest로
+- 통합테스트는 실제 API 호출 시나리오 위주로
+
+이렇게 하면 진짜 깔끔하고 관리하기 쉬운 테스트 구조가 됩니다! 특히 나중에 팀원 늘어나거나 프로젝트 커져도 일관성 있게 관리 가능해요.
+
+
+**Q1: 테스트 작성할 때 Mock 객체 사용이랑 실제 객체 사용하는 기준이 뭔지, 그리고 어떤 상황에서 각각을 선택하는게 좋을까요?**
+
+
+**Q2: @SpringBootTest, @WebMvcTest, @DataJpaTest 같은 어노테이션들 각각 언제 쓰는지, 그리고 테스트 실행 속도나 리소스 측면에서 어떤 차이가 있는지 궁금합니다!**
+
+
+**Q3: 테스트 커버리지 80% 달성하려면 getter/setter 같은 단순 메서드도 테스트해야 하나요? 실무에서는 어떤 코드를 테스트 대상에서 제외하는지 궁금해요.**
+```

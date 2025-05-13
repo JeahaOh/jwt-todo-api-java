@@ -2,6 +2,8 @@ plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.3.11'
 	id 'io.spring.dependency-management' version '1.1.7'
+	// 🧪 테스트 커버리지 측정용 플러그인 추가
+	id 'jacoco'
 }
 
 group = 'com.todo'
@@ -59,6 +61,35 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.springframework.security:spring-security-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	
+	// 🆕 추가된 테스트 라이브러리들
+	
+	// 🎭 Mockito 추가 기능들 (spring-boot-starter-test에 기본 포함되지만 확장 기능용)
+	testImplementation 'org.mockito:mockito-inline:5.2.0'  // final 클래스 mocking 지원
+	
+	// 🎯 AssertJ 추가 (기본 포함되지만 명시적 선언)
+	testImplementation 'org.assertj:assertj-core:3.24.2'
+	
+	// 🏗️ TestContainers (통합테스트용 - SQLite 쓰지만 나중에 DB 바꿀 때 유용)
+	testImplementation 'org.testcontainers:testcontainers:1.19.7'
+	testImplementation 'org.testcontainers:junit-jupiter:1.19.7'
+	
+	// 🗂️ H2 Database (테스트용 인메모리 DB - SQLite 대신 테스트에서 사용)
+	testImplementation 'com.h2database:h2:2.2.224'
+	
+	// 📊 RestAssured (API 통합테스트에 완전 편함)
+	testImplementation 'io.rest-assured:rest-assured:5.3.2'
+	testImplementation 'io.rest-assured:spring-mock-mvc:5.3.2'
+	
+	// 🎪 Mockserver (외부 API 테스트할 때 유용)
+	testImplementation 'org.mock-server:mockserver-netty:5.15.0'
+	
+	// 🔍 JSON Test (JSON 응답 검증용)
+	testImplementation 'org.skyscreamer:jsonassert:1.5.1'
+	
+	// 📝 Lombok 테스트 지원
+	testCompileOnly 'org.projectlombok:lombok'
+	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
 tasks.named('test') {
@@ -70,4 +101,65 @@ tasks.named('test') {
 		showCauses = true
 		showStackTraces = true
 	}
+	// JaCoCo 테스트 리포트 생성 설정
+	finalizedBy jacocoTestReport
+}
+
+// JaCoCo 설정
+jacoco {
+	toolVersion = "0.8.11"
+}
+
+jacocoTestReport {
+	reports {
+		xml.required = true
+		html.required = true
+		csv.required = false
+	}
+	
+	// 제외할 클래스들 설정 (JaCoCo 커버리지 계산에서 제외)
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, excludes: [
+				'**/dto/**',
+				'**/domain/**',
+				'**/config/**',
+				'**/constant/**',
+				'**/exception/**',
+				'**/*Application.class',
+				'**/Q*.class'  // QueryDSL Q클래스
+			])
+		}))
+	}
+}
+
+// 테스트 커버리지 검증 태스크
+jacocoTestCoverageVerification {
+	violationRules {
+		rule {
+			limit {
+				minimum = 0.80  // 80% 커버리지 목표
+			}
+		}
+	}
+}
+
+// 테스트 태스크 그룹화
+task unitTest(type: Test) {
+	useJUnitPlatform {
+		includeTags 'unit'
+	}
+	description = '단위 테스트만 실행'
+}
+
+task integrationTest(type: Test) {
+	useJUnitPlatform {
+		includeTags 'integration'
+	}
+	description = '통합 테스트만 실행'
+}
+
+// 빠른 테스트 실행을 위한 병렬 처리 설정
+tasks.withType(Test) {
+	maxParallelForks = (int) (Runtime.runtime.availableProcessors() / 2 ?: 1)
 }
