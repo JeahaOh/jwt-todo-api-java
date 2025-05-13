@@ -1528,3 +1528,338 @@ integration/
 
 **Q3: 테스트 커버리지 80% 달성하려면 getter/setter 같은 단순 메서드도 테스트해야 하나요? 실무에서는 어떤 코드를 테스트 대상에서 제외하는지 궁금해요.**
 ```
+
+## 테스트 코드 작성 요청
+
+### 요청
+
+ResponseUtil, CustomResponse, CustomExcpeion, ErrorCode에 대한 테스트코드 작성 요청
+
+```java
+
+@Getter
+@Setter
+public class CustomResponse<T> {
+    private boolean success;
+    private int status;
+    private String message;
+    private T data;
+
+    public CustomResponse(boolean success, int status, String message, T data) {
+        this.success = success;
+        this.status = status;
+        this.message = message;
+        this.data = data;
+    }
+}
+
+public class ResponseUtil {
+    public static <T> CustomResponse<T> success(T data) {
+        return new CustomResponse<>(true, HttpStatus.OK.value(), "Success", data);
+    }
+
+    public static <T> CustomResponse<T> success(String message, T data) {
+        return new CustomResponse<>(true, HttpStatus.OK.value(), message, data);
+    }
+
+    public static CustomResponse<?> fail(HttpStatus status, String message) {
+        return new CustomResponse<>(false, status.value(), message, null);
+    }
+
+    public static CustomResponse<?> fail(Exception e) {
+        if (e instanceof CustomException ce) {
+            return new CustomResponse<>(
+                    false,
+                    ce.getErrorCode().getHttpStatus().value(),
+                    ce.getMessage(),
+                    null
+            );
+        }
+        return new CustomResponse<>(false, HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage(), null);
+    }
+}
+
+@Getter
+public enum ErrorCode {
+    // 400 Bad Request
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
+    DUPLICATE_USER(HttpStatus.BAD_REQUEST, "이미 존재하는 사용자입니다."),
+    VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "입력값 검증 실패"),
+    INVALID_ARGUMENT(HttpStatus.BAD_REQUEST, "잘못된 인자가 전달되었습니다."),
+    INVALID_STATE(HttpStatus.BAD_REQUEST, "잘못된 상태입니다."),
+
+    // 401 Unauthorized
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "토큰이 유효하지 않습니다."),
+    EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "만료된 토큰입니다."),
+
+    // 403 Forbidden
+    FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
+    ACCESS_DENIED(HttpStatus.FORBIDDEN, "접근이 거부되었습니다."),
+
+    // 404 Not Found
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."),
+    TODO_NOT_FOUND(HttpStatus.NOT_FOUND, "TODO를 찾을 수 없습니다."),
+    RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "요청한 리소스를 찾을 수 없습니다."),
+
+    // 409 Conflict
+    RESOURCE_CONFLICT(HttpStatus.CONFLICT, "리소스 충돌이 발생했습니다."),
+    DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "이미 존재하는 리소스입니다."),
+
+    // 500 Internal Server Error
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "서버 내부 오류입니다."),
+    DATABASE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "데이터베이스 오류가 발생했습니다."),
+    EXTERNAL_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "외부 API 호출 중 오류가 발생했습니다."),
+
+    // 회원
+    MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다."),
+    MEMBER_EMAIL_DUPLICATE(HttpStatus.CONFLICT, "이미 존재하는 이메일입니다."),
+    MEMBER_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "비밀번호가 일치하지 않습니다."),
+    MEMBER_UPDATE_NO_DATA(HttpStatus.BAD_REQUEST, "변경할 데이터가 없습니다.");
+
+    private final HttpStatus httpStatus;
+    private final String message;
+
+    ErrorCode(HttpStatus status, String message) {
+        this.httpStatus = status;
+        this.message = message;
+    }
+}
+
+@Getter
+public class CustomException extends RuntimeException {
+    private final ErrorCode errorCode;
+
+    public CustomException(ErrorCode errorCode) {
+        super(errorCode.getMessage());
+        this.errorCode = errorCode;
+    }
+
+    public CustomException(ErrorCode errorCode, String detailMessage) {
+        super(detailMessage);
+        this.errorCode = errorCode;
+    }
+}
+
+// 테스트용 멤버 객체 클래스
+@Entity
+@Table(
+        name = "member",
+        uniqueConstraints = {
+                @UniqueConstraint(columnNames = "email")
+        }
+)
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class Member {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Integer no;
+
+        @Column(nullable = false, unique = true, length = 255)
+        private String email;
+
+        @Column(nullable = false, length = 100)
+        private String name;
+
+        @Column(nullable = false, length = 255)
+        private String password;
+
+        @CreationTimestamp
+        @Column(updatable = false)
+        private LocalDateTime createdAt;
+
+        @UpdateTimestamp
+        private LocalDateTime updatedAt;
+}
+
+// 테스트용 TODO 객체 클래스
+@Entity
+@Table(name = "todo")
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class Todo {
+
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Integer no;
+
+  @Column(nullable = false, length = 255)
+  private String title;
+
+  @Column(length = 1000)
+  private String description;
+
+  @Column(nullable = false)
+  private boolean completed = false;
+
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "member_no", nullable = false)
+  private com.todo.api.mmbr.domain.Member member;
+
+  @CreationTimestamp
+  @Column(updatable = false)
+  private LocalDateTime createdAt;
+
+  @UpdateTimestamp
+  private LocalDateTime updatedAt;
+}
+```
+
+### 응답
+
+```markdown
+테스트 코드를 JUnit 5와 AssertJ를 기준으로 작성해줄게. 테스트 대상은 ResponseUtil, CustomResponse, CustomException, ErrorCode야. 객체 단위 테스트이기 때문에 Spring Context 없이 순수 단위 테스트로 가능해.
+
+⸻
+
+✅ 테스트 코드: ResponseUtil, CustomResponse, CustomException, ErrorCode
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+public class ResponseUtilTest {
+
+    @Nested
+    @DisplayName("✅ CustomResponse 테스트")
+    class CustomResponseTest {
+
+        @Test
+        @DisplayName("성공 응답 생성 테스트")
+        void successResponse_shouldContainCorrectFields() {
+            String data = "test-data";
+            CustomResponse<String> response = ResponseUtil.success(data);
+
+            assertThat(response.isSuccess()).isTrue();
+            assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+            assertThat(response.getMessage()).isEqualTo("Success");
+            assertThat(response.getData()).isEqualTo("test-data");
+        }
+
+        @Test
+        @DisplayName("성공 응답 + 커스텀 메시지")
+        void successResponseWithCustomMessage() {
+            String data = "custom-data";
+            String message = "데이터가 성공적으로 처리되었습니다.";
+            CustomResponse<String> response = ResponseUtil.success(message, data);
+
+            assertThat(response.isSuccess()).isTrue();
+            assertThat(response.getStatus()).isEqualTo(HttpStatus.OK.value());
+            assertThat(response.getMessage()).isEqualTo(message);
+            assertThat(response.getData()).isEqualTo(data);
+        }
+    }
+
+    @Nested
+    @DisplayName("❌ 실패 응답 테스트")
+    class FailResponseTest {
+
+        @Test
+        @DisplayName("HTTP 상태 및 메시지로 실패 응답 생성")
+        void failResponseWithStatusAndMessage() {
+            String message = "요청 실패";
+            CustomResponse<?> response = ResponseUtil.fail(HttpStatus.BAD_REQUEST, message);
+
+            assertThat(response.isSuccess()).isFalse();
+            assertThat(response.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+            assertThat(response.getMessage()).isEqualTo(message);
+            assertThat(response.getData()).isNull();
+        }
+
+        @Test
+        @DisplayName("CustomException 기반 실패 응답 생성")
+        void failResponseWithCustomException() {
+            CustomException ce = new CustomException(ErrorCode.MEMBER_NOT_FOUND);
+            CustomResponse<?> response = ResponseUtil.fail(ce);
+
+            assertThat(response.isSuccess()).isFalse();
+            assertThat(response.getStatus()).isEqualTo(HttpStatus.NOT_FOUND.value());
+            assertThat(response.getMessage()).isEqualTo(ErrorCode.MEMBER_NOT_FOUND.getMessage());
+            assertThat(response.getData()).isNull();
+        }
+
+        @Test
+        @DisplayName("일반 Exception 기반 실패 응답 생성")
+        void failResponseWithNormalException() {
+            Exception e = new RuntimeException("서버 내부 오류");
+            CustomResponse<?> response = ResponseUtil.fail(e);
+
+            assertThat(response.isSuccess()).isFalse();
+            assertThat(response.getStatus()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            assertThat(response.getMessage()).isEqualTo("서버 내부 오류");
+            assertThat(response.getData()).isNull();
+        }
+    }
+
+    @Nested
+    @DisplayName("⚠️ CustomException 테스트")
+    class CustomExceptionTest {
+
+        @Test
+        @DisplayName("에러코드만으로 생성")
+        void createCustomExceptionWithErrorCode() {
+            CustomException exception = new CustomException(ErrorCode.INVALID_TOKEN);
+
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_TOKEN);
+            assertThat(exception.getMessage()).isEqualTo(ErrorCode.INVALID_TOKEN.getMessage());
+        }
+
+        @Test
+        @DisplayName("에러코드 + 상세 메시지 생성")
+        void createCustomExceptionWithDetailMessage() {
+            String detail = "토큰이 변조되었습니다.";
+            CustomException exception = new CustomException(ErrorCode.INVALID_TOKEN, detail);
+
+            assertThat(exception.getErrorCode()).isEqualTo(ErrorCode.INVALID_TOKEN);
+            assertThat(exception.getMessage()).isEqualTo(detail);
+        }
+    }
+
+    @Nested
+    @DisplayName("🔢 ErrorCode Enum 테스트")
+    class ErrorCodeTest {
+
+        @Test
+        @DisplayName("에러코드 enum 값이 정확한지 확인")
+        void errorCodeEnumValidation() {
+            ErrorCode code = ErrorCode.DUPLICATE_USER;
+
+            assertThat(code.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(code.getMessage()).isEqualTo("이미 존재하는 사용자입니다.");
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 사용자 에러코드 확인")
+        void memberNotFoundErrorCode() {
+            ErrorCode code = ErrorCode.MEMBER_NOT_FOUND;
+
+            assertThat(code.getHttpStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(code.getMessage()).isEqualTo("존재하지 않는 회원입니다.");
+        }
+    }
+}
+
+
+
+⸻
+
+🧠 추가 팁
+	•	위 테스트는 Spring Boot 없이도 돌릴 수 있는 순수 unit test이기 때문에 mocking 도구가 필요 없음.
+	•	각 테스트는 응답 구조를 검증하는 용도로 짜여 있음. 비즈니스 로직 테스트는 아님.
+	•	CI 연동 전에도 IDE 또는 CLI로 쉽게 단위 테스트 가능함.
+
+⸻
+
+Q1: ResponseEntity<CustomResponse<T>>로 감쌀 경우, 어떤 방식으로 HTTP 응답 구조를 더 유연하게 구성할 수 있을까?
+Q2: ErrorCode를 분류별 패키지 또는 클래스 단위로 나누는 구조는 어떻게 리팩토링하면 좋을까?
+Q3: 커스텀 예외를 @ControllerAdvice와 함께 적용한 전역 예외 처리 테스트 코드는 어떻게 작성하면 좋을까?
+```
