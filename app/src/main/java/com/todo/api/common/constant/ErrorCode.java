@@ -48,12 +48,4 @@ public enum ErrorCode {
         this.httpStatus = status;
         this.message = message;
     }
-
-    public HttpStatus getHttpStatus() {
-        return httpStatus;
-    }
-
-    public String getMessage() {
-        return message;
-    }
 }
