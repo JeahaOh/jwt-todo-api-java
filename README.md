@@ -100,14 +100,11 @@ cd app
 # 전체 테스트 실행
 ./gradlew test
 
-# 특정 테스트 실행
-./gradlew test --tests "com.todo.api.mmbr.*"
-
 # 단위 테스트 실행
-./gradlew test --tests "com.todo.api.*" --include-tag unit
+./gradlew unitTest
 
 # 통합 테스트 실행
-./gradlew test --tests "com.todo.api.*" --include-tag integration
+./gradlew integrationTest
 ```
 
 ### 4. API 문서 확인

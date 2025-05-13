@@ -92,18 +92,6 @@ dependencies {
 	testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
-tasks.named('test') {
-	useJUnitPlatform()
-	testLogging {
-		events "passed", "skipped", "failed"
-		showStandardStreams = true
-		showExceptions = true
-		showCauses = true
-		showStackTraces = true
-	}
-	// JaCoCo 테스트 리포트 생성 설정
-	finalizedBy jacocoTestReport
-}
 
 // JaCoCo 설정
 jacoco {
@@ -144,10 +132,10 @@ jacocoTestCoverageVerification {
 	}
 }
 
-// 테스트 태스크 그룹화
 task unitTest(type: Test) {
 	useJUnitPlatform {
 		includeTags 'unit'
+		excludeTags 'integration'
 	}
 	description = '단위 테스트만 실행'
 }
@@ -155,11 +143,31 @@ task unitTest(type: Test) {
 task integrationTest(type: Test) {
 	useJUnitPlatform {
 		includeTags 'integration'
+		excludeTags 'unit'
 	}
 	description = '통합 테스트만 실행'
 }
 
 // 빠른 테스트 실행을 위한 병렬 처리 설정
-tasks.withType(Test) {
+tasks.withType(Test).configureEach {
+	outputs.upToDateWhen { false }
+	useJUnitPlatform()
+
+	// 병렬 처리
 	maxParallelForks = (int) (Runtime.runtime.availableProcessors() / 2 ?: 1)
+
+	// 단순 결과만 출력
+	testLogging {
+		events "passed", "failed", "skipped"  // 필요한 결과만
+		showStandardStreams = false          // System.out, err 생략
+		showExceptions = false
+		showCauses = false
+		showStackTraces = false
+	}
+
+	// ✅ 테스트 결과만 형식화해서 출력
+	afterTest { desc, result ->
+		def status = result.resultType.name()
+		println "${desc.className.replaceAll(/^.*\\./, '')} > ${desc.displayName} ${status}"
+	}
 }
